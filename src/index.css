@@ -1,0 +1,521 @@
+﻿@import "tailwindcss";
+
+/* ---------------------------
+   Alice x macOS tokens
+--------------------------- */
+:root{
+    /* deep forest background */
+    --bg-0: #07140E;
+    --bg-1: #0B2218;
+
+    /* green dominates */
+    --emerald: #21D38B;
+    --emerald-2: #11B877;
+
+    /* alice accents (tea/gold/cream) */
+    --gold: #E7C77A;
+    --cream: rgba(245, 240, 233, .92);
+
+    /* orange CTA */
+    --orange: #FF8A2A;
+    --orange-2: #FF6A00;
+    --orange-glow: rgba(255, 138, 42, .35);
+
+    --text: rgba(245, 240, 233, .94);
+    --muted: rgba(245, 240, 233, .72);
+
+    --glass: rgba(10, 30, 20, .42);
+    --glass-strong: rgba(10, 30, 20, .55);
+    --border: rgba(33, 211, 139, .22);
+
+    --shadow: 0 20px 60px rgba(0,0,0,.45);
+    --shadow-soft: 0 12px 30px rgba(0,0,0,.25);
+
+    --radius-xl: 22px;
+}
+
+/* base */
+html, body, #root { height: 100%; }
+
+body{
+    margin: 0;
+    font-family: Rubik, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    color: var(--text);
+    background:
+            radial-gradient(1200px 700px at 20% 20%, rgba(33, 211, 139, .18), transparent 55%),
+            radial-gradient(900px 600px at 80% 25%, rgba(231, 199, 122, .10), transparent 55%),
+            radial-gradient(900px 700px at 55% 85%, rgba(33, 211, 139, .12), transparent 60%),
+            linear-gradient(180deg, var(--bg-0), var(--bg-1));
+    overflow-x: hidden;
+}
+
+/* subtle “noise” */
+.bg-noise::before{
+    content:"";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: .09;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+}
+
+/* macOS-ish glass */
+.glass{
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+/* inputs */
+.field{
+    background: rgba(8, 20, 14, .35);
+    border: 1px solid rgba(33, 211, 139, .18);
+    border-radius: 14px;
+    color: var(--text);
+    outline: none;
+}
+.field:focus{
+    border-color: rgba(33, 211, 139, .55);
+    box-shadow: 0 0 0 4px rgba(33, 211, 139, .14);
+}
+
+/* secondary button */
+.btn-ghost{
+    border-radius: 14px;
+    border: 1px solid rgba(33, 211, 139, .20);
+    background: rgba(10, 30, 20, .22);
+    color: var(--text);
+    transition: border-color .15s ease, background .15s ease, transform .15s ease;
+}
+.btn-ghost:hover{
+    border-color: rgba(33, 211, 139, .38);
+    background: rgba(10, 30, 20, .30);
+}
+.btn-ghost:active{
+    transform: translateY(1px);
+}
+
+/* ---------------------------
+   Primary button (Orange) + animations
+--------------------------- */
+.btn-primary{
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    background: linear-gradient(180deg, var(--orange), var(--orange-2));
+    color: #1a0d00;
+    box-shadow:
+            0 18px 34px rgba(255, 106, 0, .22),
+            0 10px 22px rgba(0,0,0,.18);
+    transform: translateZ(0);
+    transition: transform .15s ease, filter .15s ease, box-shadow .2s ease;
+}
+
+/* мягкое "дыхание" когда кнопка активна (не disabled) */
+.btn-primary:not(:disabled){
+    animation: btnBreath 2.6s ease-in-out infinite;
+}
+
+@keyframes btnBreath{
+    0%,100% { box-shadow: 0 18px 34px rgba(255, 106, 0, .18), 0 10px 22px rgba(0,0,0,.18); }
+    50%     { box-shadow: 0 22px 44px rgba(255, 106, 0, .28), 0 12px 26px rgba(0,0,0,.22); }
+}
+
+/* shimmer слой */
+.btn-primary::before{
+    content:"";
+    position:absolute;
+    inset:-2px;
+    background:
+            radial-gradient(120px 80px at 20% 30%, rgba(255,255,255,.35), transparent 60%),
+            linear-gradient(120deg, transparent 20%, rgba(255,255,255,.22), transparent 55%);
+    transform: translateX(-60%) rotate(8deg);
+    opacity: 0;
+    transition: opacity .18s ease;
+}
+
+/* glow слой */
+.btn-primary::after{
+    content:"";
+    position:absolute;
+    inset:-18px;
+    background: radial-gradient(240px 120px at 50% 120%, var(--orange-glow), transparent 62%);
+    opacity: .75;
+    pointer-events:none;
+}
+
+.btn-primary:hover{
+    filter: brightness(1.03) saturate(1.05);
+    transform: translateY(-1px);
+}
+
+.btn-primary:hover::before{
+    opacity: .9;
+    animation: btnShimmer .9s ease forwards;
+}
+
+@keyframes btnShimmer{
+    from { transform: translateX(-70%) rotate(8deg); }
+    to   { transform: translateX(70%) rotate(8deg); }
+}
+
+.btn-primary:active{
+    transform: translateY(1px) scale(.99);
+    filter: brightness(.98);
+}
+
+.btn-primary:disabled{
+    animation: none;
+    cursor: not-allowed;
+    opacity: .65;
+    box-shadow: 0 12px 22px rgba(0,0,0,.18);
+}
+
+/* ---------------------------
+   Sparkles (needs <span class="sparkles" /> inside button)
+--------------------------- */
+.btn-primary .sparkles{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+}
+
+/* 2 звезды */
+.btn-primary .sparkles::before,
+.btn-primary .sparkles::after{
+    content:"";
+    position:absolute;
+    width: 10px;
+    height: 10px;
+    opacity: 0;
+    transform: scale(.6) rotate(0deg);
+    transition: opacity .18s ease;
+    filter: drop-shadow(0 8px 14px rgba(0,0,0,.22));
+    background: radial-gradient(circle at 40% 40%, rgba(255,255,255,.95), rgba(255,255,255,0) 60%);
+
+    /* “звезда” */
+    clip-path: polygon(
+            50% 0%,
+            61% 35%,
+            98% 35%,
+            68% 57%,
+            79% 91%,
+            50% 70%,
+            21% 91%,
+            32% 57%,
+            2% 35%,
+            39% 35%
+    );
+}
+
+/* позиции */
+.btn-primary .sparkles::before{ right: 14px; top: 10px; }
+.btn-primary .sparkles::after { right: 34px; top: 24px; width: 7px; height: 7px; }
+
+/* появление на hover */
+.btn-primary:hover .sparkles::before{
+    opacity: 1;
+    animation: sparklePop .65s ease forwards;
+}
+.btn-primary:hover .sparkles::after{
+    opacity: 1;
+    animation: sparklePop2 .7s ease forwards;
+}
+
+@keyframes sparklePop{
+    0%   { transform: scale(.4) rotate(-15deg); opacity: 0; }
+    45%  { transform: scale(1.05) rotate(20deg); opacity: 1; }
+    100% { transform: scale(.8) rotate(35deg); opacity: 0; }
+}
+
+@keyframes sparklePop2{
+    0%   { transform: scale(.35) rotate(0deg); opacity: 0; }
+    55%  { transform: scale(1.1) rotate(-25deg); opacity: 1; }
+    100% { transform: scale(.85) rotate(-40deg); opacity: 0; }
+}
+
+/* ---------------------------
+   Marketing Funnel Indicator (replaces plain macOS dots)
+   JSX remains: <div className="traffic"><span className="dot red" /><span className="dot yellow" /><span className="dot green" /></div>
+--------------------------- */
+.traffic{
+    position: relative;
+    display:flex;
+    gap:10px;
+    align-items:center;
+
+    padding: 10px 12px;
+    border-radius: 999px;
+
+    background: rgba(8, 20, 14, .18);
+    border: 1px solid rgba(33, 211, 139, .16);
+    box-shadow: 0 10px 25px rgba(0,0,0,.18);
+    overflow: hidden;
+    transform: translateZ(0);
+}
+
+/* “маркетинговая” бегущая подсветка по капсуле */
+.traffic::before{
+    content:"";
+    position:absolute;
+    inset:-2px;
+    background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255,255,255,.10) 18%,
+            rgba(33,211,139,.18) 40%,
+            rgba(231,199,122,.12) 55%,
+            transparent 72%
+    );
+    transform: translateX(-120%);
+    opacity: 0;
+    pointer-events:none;
+}
+
+.glass:hover .traffic::before{
+    opacity: .95;
+    animation: trafficSweep 1.1s ease forwards;
+}
+
+@keyframes trafficSweep{
+    from { transform: translateX(-120%); }
+    to   { transform: translateX(120%); }
+}
+
+/* точки = этапы воронки */
+.dot{
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    position: relative;
+    opacity: .95;
+
+    /* “пустой” этап */
+    background: rgba(245,240,233,.10);
+    border: 1px solid rgba(245,240,233,.16);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.10);
+
+    transform: translateZ(0);
+}
+
+/* внутренняя “заливка” как прогресс */
+.dot::after{
+    content:"";
+    position:absolute;
+    inset: 1px;
+    border-radius: 999px;
+
+    transform: scale(.15);
+    opacity: 0;
+
+    background:
+            radial-gradient(circle at 30% 30%, rgba(255,255,255,.45), rgba(255,255,255,0) 45%),
+            linear-gradient(180deg, rgba(33,211,139,.95), rgba(17,184,119,.95));
+    box-shadow: 0 10px 18px rgba(33,211,139,.20);
+
+    transition: transform .25s ease, opacity .25s ease;
+}
+
+/* разные этапы (lead/warm/pay) */
+.dot.red::after{
+    background:
+            radial-gradient(circle at 30% 30%, rgba(255,255,255,.42), rgba(255,255,255,0) 45%),
+            linear-gradient(180deg, rgba(255,138,42,.98), rgba(255,106,0,.98));
+    box-shadow: 0 10px 18px rgba(255,106,0,.18);
+}
+.dot.yellow::after{
+    background:
+            radial-gradient(circle at 30% 30%, rgba(255,255,255,.42), rgba(255,255,255,0) 45%),
+            linear-gradient(180deg, rgba(231,199,122,.95), rgba(255,189,46,.95));
+    box-shadow: 0 10px 18px rgba(255,189,46,.16);
+}
+.dot.green::after{
+    background:
+            radial-gradient(circle at 30% 30%, rgba(255,255,255,.45), rgba(255,255,255,0) 45%),
+            linear-gradient(180deg, rgba(33,211,139,.95), rgba(17,184,119,.95));
+    box-shadow: 0 10px 18px rgba(33,211,139,.18);
+}
+
+/* “Lead → Warm → Pay” прогресс по hover: слева направо */
+.glass:hover .dot::after{
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* последовательные задержки — как этапы воронки */
+.glass:hover .dot.red::after{ transition-delay: 0ms; }
+.glass:hover .dot.yellow::after{ transition-delay: 120ms; }
+.glass:hover .dot.green::after{ transition-delay: 240ms; }
+
+/* тонкая линия-коннектор между этапами (ощущение pipeline) */
+.dot + .dot{
+    margin-left: 2px;
+}
+.dot + .dot::before{
+    content:"";
+    position:absolute;
+    left: -12px;
+    top: 50%;
+    width: 10px;
+    height: 2px;
+    transform: translateY(-50%);
+    border-radius: 99px;
+    background: rgba(245,240,233,.12);
+}
+.glass:hover .dot + .dot::before{
+    background: linear-gradient(90deg, rgba(33,211,139,.15), rgba(255,138,42,.18));
+}
+
+/* reduce motion */
+@media (prefers-reduced-motion: reduce){
+    .traffic::before{ animation: none !important; opacity: 0 !important; }
+    .dot::after{ transition: none !important; }
+    .glass:hover .dot::after{ transform: scale(1); opacity: 1; }
+}
+/* ---------------------------
+   Cheshire Cat (slow glow / fade) + random reposition support
+--------------------------- */
+.cheshire{
+    position: fixed;               /* важно: по экрану, а не внутри контейнера */
+    width: 240px;
+    height: 140px;
+    pointer-events: none;
+    z-index: 2;
+
+    /* центрируем относительно точки left/top */
+    transform: translate(-50%, -50%);
+    will-change: left, top, opacity, filter, transform;
+
+    /* плавный “перелёт” к новой позиции */
+    transition:
+            left 8s ease,
+            top 8s ease;
+
+    /* базовый вид */
+    opacity: 0;
+    filter: blur(.0px);
+
+    /* медленный цикл появления/исчезания */
+    animation: cheshireFade 22s ease-in-out infinite;
+}
+
+.cheshire__svg{
+    width: 100%;
+    height: 100%;
+    color: rgba(33, 211, 139, .95); /* emerald */
+}
+
+/* свечения больше, но мягко */
+.cheshire__glow{
+    filter:
+            drop-shadow(0 0 10px rgba(33,211,139,.22))
+            drop-shadow(0 0 26px rgba(33,211,139,.16))
+            drop-shadow(0 0 44px rgba(231,199,122,.08));
+    animation: cheshireGlow 22s ease-in-out infinite;
+}
+
+/* очень медленно появляется → живёт → исчезает */
+@keyframes cheshireFade{
+    0%   { opacity: 0; }
+    18%  { opacity: .12; }
+    42%  { opacity: .68; }
+    62%  { opacity: .55; }
+    84%  { opacity: .12; }
+    100% { opacity: 0; }
+}
+
+/* мягко “дышит” яркостью свечения */
+@keyframes cheshireGlow{
+    0%   { filter: drop-shadow(0 0 8px rgba(33,211,139,.16)) drop-shadow(0 0 18px rgba(33,211,139,.10)) drop-shadow(0 0 28px rgba(231,199,122,.05)); }
+    50%  { filter: drop-shadow(0 0 16px rgba(33,211,139,.30)) drop-shadow(0 0 40px rgba(33,211,139,.20)) drop-shadow(0 0 64px rgba(231,199,122,.12)); }
+    100% { filter: drop-shadow(0 0 8px rgba(33,211,139,.16)) drop-shadow(0 0 18px rgba(33,211,139,.10)) drop-shadow(0 0 28px rgba(231,199,122,.05)); }
+}
+
+/* на мобильных можно сделать меньше, чтобы не мешал */
+@media (max-width: 640px){
+    .cheshire{
+        width: 180px;
+        height: 110px;
+        transition: left 7s ease, top 7s ease;
+    }
+}
+
+/* уважение к reduce motion */
+@media (prefers-reduced-motion: reduce){
+    .cheshire, .cheshire__glow{ animation: none !important; opacity: .18; }
+    .cheshire{ transition: none !important; }
+}
+/* ---------------------------
+   Marketing Conveyor (clean, premium)
+--------------------------- */
+.mconveyor{
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 18px;
+    height: 52px;
+    pointer-events: none;
+    z-index: 4;
+}
+
+/* baseline — строго чёрная */
+.mconveyor__line{
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 10px;
+    height: 2px;
+    background: #000;
+    opacity: .9;
+}
+
+/* moving stream container */
+.mconveyor__flow{
+    position: absolute;
+    left: -260px;
+    bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    animation: mconveyorMove 18s linear infinite; /* ОЧЕНЬ медленно */
+}
+
+/* dots — строго чёрные, но разной “массы” (маркетинг-стадии) */
+.mconveyor__dot{
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #000;
+    opacity: .9;
+    transform: translateY(-6px);
+}
+.mconveyor__dot.is-lead{ opacity: .55; }
+.mconveyor__dot.is-warm{ opacity: .75; }
+.mconveyor__dot.is-pay { opacity: .95; }
+
+/* tags small — строго чёрные */
+.mconveyor__tag{
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #000;
+    opacity: .55;
+    transform: translateY(-10px);
+}
+
+/* slow pass across the screen */
+@keyframes mconveyorMove{
+    0%   { transform: translateX(0); opacity: 0; }
+    10%  { opacity: .9; }
+    90%  { opacity: .9; }
+    100% { transform: translateX(calc(100vw + 520px)); opacity: 0; }
+}
+
+/* respect reduce motion */
+@media (prefers-reduced-motion: reduce){
+    .mconveyor__flow{ animation: none !important; opacity: .15; left: 18px; }
+}
