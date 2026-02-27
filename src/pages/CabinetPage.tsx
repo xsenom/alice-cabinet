@@ -1,20 +1,17 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import Background from "@/components/Background";
 import { supabase } from "@/lib/supabase/client";
 
 export default function CabinetPage() {
-    const nav = useNavigate();
-    const [email, setEmail] = useState<string>("");
+    const [email, setEmail] = useState<string>("Гость");
 
     useEffect(() => {
         (async () => {
             const { data } = await supabase.auth.getSession();
             const user = data.session?.user;
-            if (!user) return nav("/login", { replace: true });
-            setEmail(user.email ?? "");
+            setEmail(user?.email ?? "Гость");
         })();
-    }, [nav]);
+    }, []);
 
     return (
         <Background>
@@ -35,7 +32,7 @@ export default function CabinetPage() {
                             className="btn-ghost px-4 py-2 text-sm"
                             onClick={async () => {
                                 await supabase.auth.signOut();
-                                nav("/login", { replace: true });
+                                setEmail("Гость");
                             }}
                         >
                             Выйти

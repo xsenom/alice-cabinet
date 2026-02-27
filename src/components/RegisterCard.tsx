@@ -110,11 +110,27 @@ export default function RegisterCard() {
                 {/* header */}
                 <div className="mb-5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="traffic" >
-                            <span className="dot red" />
-                            <span className="dot yellow" />
-                            <span className="dot green" />
-                        </div>
+                        {mode === "login" ? (
+                            <div className="login-icons" aria-hidden="true">
+                                <div className="login-icons__flow">
+                                    <span className="login-icon is-emerald" />
+                                    <span className="login-icon is-gold" />
+                                    <span className="login-icon is-coral" />
+                                    <span className="login-icon is-cyan" />
+                                    <span className="login-icon is-emerald" />
+                                    <span className="login-icon is-gold" />
+                                    <span className="login-icon is-coral" />
+                                    <span className="login-icon is-cyan" />
+                                    <span className="login-icon is-emerald" />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="traffic">
+                                <span className="dot red" />
+                                <span className="dot yellow" />
+                                <span className="dot green" />
+                            </div>
+                        )}
 
 
                     </div>

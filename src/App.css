@@ -40,3 +40,56 @@
 .read-the-docs {
   color: #888;
 }
+/* ===== Lesik: Alice x Forest micro-animations ===== */
+
+:root{
+    --lesik-bg0: #0A1C0E;
+    --lesik-bg1: #143426;
+    --lesik-panel: rgba(20, 52, 38, 0.70);
+    --lesik-text: #FDFDFD;
+    --lesik-muted: rgba(162, 215, 164, 0.75);
+    --lesik-neon: #63D951;
+    --lesik-gold: #979552;
+}
+
+/* Page enter (portal / hedge) */
+@keyframes pageEnter {
+    from { opacity: 0; transform: translateY(6px); filter: blur(2px); }
+    to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.page-enter { animation: pageEnter 240ms ease-out; }
+
+/* Cheshire blink + glow */
+@keyframes cheshireBlink {
+    0%, 92%, 100% { transform: scaleY(1); opacity: 1; }
+    94% { transform: scaleY(0.14); opacity: 0.85; }
+    96% { transform: scaleY(1); opacity: 1; }
+}
+@keyframes cheshireGlow {
+    0%,100% { filter: drop-shadow(0 0 10px rgba(99,217,81,0.25)); opacity: 0.92; }
+    50% { filter: drop-shadow(0 0 18px rgba(99,217,81,0.42)); opacity: 1; }
+}
+.cheshire-eyes { animation: cheshireGlow 3.6s ease-in-out infinite; }
+.cheshire-blink { transform-origin: center; animation: cheshireBlink 8.5s ease-in-out infinite; }
+
+/* Fireflies */
+@keyframes firefly {
+    0% { transform: translate(0,0); opacity: 0; }
+    18% { opacity: 0.35; }
+    55% { transform: translate(22px,-26px); opacity: 0.20; }
+    85% { opacity: 0.33; }
+    100% { transform: translate(0,0); opacity: 0; }
+}
+.firefly {
+    position: absolute;
+    width: 6px; height: 6px;
+    border-radius: 999px;
+    background: rgba(151,149,82,0.65);
+    box-shadow: 0 0 16px rgba(151,149,82,0.26);
+    animation: firefly 7.2s ease-in-out infinite;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .page-enter, .cheshire-eyes, .cheshire-blink, .firefly { animation: none !important; }
+}
