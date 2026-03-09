@@ -1,5 +1,5 @@
 import React from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import AppLayout from "./layouts/AppLayout";
 import RequireOnboarding from "./components/RequireOnboarding";
 
@@ -25,29 +25,16 @@ export default function AppRoutes() {
             >
                 <Route index element={<HomePage />} />
                 <Route
-                    path="library"
                     element={
                         <RequireOnboarding>
-                            <LibraryPage />
+                            <Outlet />
                         </RequireOnboarding>
                     }
-                />
-                <Route
-                    path="assistant"
-                    element={
-                        <RequireOnboarding>
-                            <AssistantPage />
-                        </RequireOnboarding>
-                    }
-                />
-                <Route
-                    path="profile"
-                    element={
-                        <RequireOnboarding>
-                            <ProfilePage />
-                        </RequireOnboarding>
-                    }
-                />
+                >
+                    <Route path="library" element={<LibraryPage />} />
+                    <Route path="assistant" element={<AssistantPage />} />
+                    <Route path="profile" element={<ProfilePage />} />
+                </Route>
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
