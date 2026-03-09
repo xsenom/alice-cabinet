@@ -27,12 +27,21 @@ VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
 create table if not exists public.profiles_les (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
+  original_email text,
   full_name text,
   profession text,
   avatar_url text,
+  status_admin boolean not null default false,
+  plan_status text not null default 'free',
+  plan_expires_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles_les add column if not exists original_email text;
+alter table public.profiles_les add column if not exists status_admin boolean not null default false;
+alter table public.profiles_les add column if not exists plan_status text not null default 'free';
+alter table public.profiles_les add column if not exists plan_expires_at timestamptz;
 
 -- updated_at trigger
 create or replace function public.set_updated_at()
@@ -104,6 +113,32 @@ with check (
   bucket_id = 'avatars'
   and auth.uid()::text = (storage.foldername(name))[1]
 );
+
+
+-- assistant free usage per day
+create table if not exists public.assistant_usage_les (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date_key date not null,
+  questions_count int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, date_key)
+);
+
+alter table public.assistant_usage_les enable row level security;
+
+drop policy if exists "assistant_usage_les_select_own" on public.assistant_usage_les;
+create policy "assistant_usage_les_select_own"
+on public.assistant_usage_les
+for select
+using (auth.uid() = user_id);
+
+drop policy if exists "assistant_usage_les_upsert_own" on public.assistant_usage_les;
+create policy "assistant_usage_les_upsert_own"
+on public.assistant_usage_les
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
 ```
 
 ## 3) CLI-команды (опционально)

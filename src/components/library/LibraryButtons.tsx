@@ -5,10 +5,10 @@ const BTN_CLASS =
     "h-10 px-5 rounded-full text-[12px] font-extrabold tracking-wide uppercase border inline-flex items-center justify-center";
 
 const BTN_STYLE = {
-    borderColor: TOKENS.orangeBorder,
-    background: TOKENS.orangeBg,
-    color: "#FFFFFF",
-    boxShadow: "0 10px 22px rgba(255,138,0,0.18)",
+    borderColor: "rgba(197,122,36,0.30)",
+    background: "linear-gradient(180deg, #B56A18, #7E3D0A)",
+    color: "#07120E",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
 } as const;
 
 export function AppButton({

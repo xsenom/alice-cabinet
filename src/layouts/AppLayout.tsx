@@ -7,11 +7,9 @@ import NetworkCanvasBackground from "../components/background/NetworkCanvasBackg
 import ForestBackdrop from "../components/background/ForestBackdrop";
 import { useSessionProfile } from "../hooks/useSessionProfile";
 
-import logo from "../assets/lesik-logo.png";
-
 const TOKENS = { text: "#F2F4F3" };
 
-const NAV: NavItem[] = [
+const BASE_NAV: NavItem[] = [
     { to: "/", label: "Главная", icon: "home" },
     { to: "/library", label: "Библиотека", icon: "library" },
     { to: "/assistant", label: "Ассистент", icon: "assistant" },
@@ -25,6 +23,10 @@ export default function AppLayout() {
     const { profile } = useSessionProfile();
     const name = (profile?.full_name ?? "").trim();
 
+    const navItems: NavItem[] = profile?.status_admin
+        ? [...BASE_NAV, { to: "/admin", label: "Админ", icon: "admin" }]
+        : BASE_NAV;
+
     return (
         <div className="min-h-screen" style={{ color: TOKENS.text }}>
             <ForestBackdrop />
@@ -33,7 +35,7 @@ export default function AppLayout() {
             <div className={isDesktop ? "mx-auto max-w-6xl px-6 py-6" : ""}>
                 {isDesktop ? (
                     <div className="grid grid-cols-[280px_1fr] gap-6">
-                        <DesktopSidebar items={NAV} />
+                        <DesktopSidebar items={navItems} />
                         <main className="min-w-0">
                             <Outlet />
                         </main>
@@ -42,11 +44,15 @@ export default function AppLayout() {
                     <>
                         <main className="mx-auto w-full max-w-md px-4 pt-5 pb-24">
                             <div className="mb-4 flex items-center gap-3">
-                                <img
-                                    src={logo}
-                                    alt="LESik"
-                                    className="h-10 w-10 rounded-full border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.35)] object-cover"
-                                />
+                                {profile?.avatar_url ? (
+                                    <img
+                                        src={profile.avatar_url}
+                                        alt="Аватар"
+                                        className="h-10 w-10 rounded-full border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.35)] object-cover"
+                                    />
+                                ) : (
+                                    <div className="h-10 w-10 rounded-full border border-white/10 bg-black shadow-[0_10px_30px_rgba(0,0,0,0.35)]" />
+                                )}
                                 <div className="text-base font-semibold tracking-tight">
                                     {name ? `${name}, всё получится!` : "LESik"}
                                 </div>
@@ -54,7 +60,7 @@ export default function AppLayout() {
 
                             <Outlet />
                         </main>
-                        <MobileTabs items={NAV} />
+                        <MobileTabs items={navItems} />
                     </>
                 )}
             </div>

@@ -141,25 +141,36 @@ export function LessonScreen({
                         }}
                     >
                         <div className="relative aspect-video flex items-center justify-center">
-                            <div
-                                className="absolute inset-0"
-                                style={{
-                                    background:
-                                        "radial-gradient(circle at 35% 25%, rgba(47,107,255,0.22), transparent 60%)",
-                                }}
-                            />
-                            <div className="relative flex flex-col items-center gap-2">
-                                <div
-                                    className="h-16 w-16 rounded-full flex items-center justify-center"
-                                    style={{ background: "rgba(47,107,255,0.85)" }}
-                                >
-                                    <div className="text-black text-[18px] font-black">▶</div>
-                                </div>
-                                <div className="text-[13px] text-white/70">{lesson.video?.label ?? "Видео урока"}</div>
-                                {uploadedVideoName && (
-                                    <div className="text-[12px] text-white/60">Загружено: {uploadedVideoName}</div>
-                                )}
-                            </div>
+                            {lesson.video?.url ? (
+                                <video
+                                    className="h-full w-full object-cover"
+                                    controls
+                                    preload="metadata"
+                                    src={lesson.video.url}
+                                />
+                            ) : (
+                                <>
+                                    <div
+                                        className="absolute inset-0"
+                                        style={{
+                                            background:
+                                                "radial-gradient(circle at 35% 25%, rgba(47,107,255,0.22), transparent 60%)",
+                                        }}
+                                    />
+                                    <div className="relative flex flex-col items-center gap-2">
+                                        <div
+                                            className="h-16 w-16 rounded-full flex items-center justify-center"
+                                            style={{ background: "rgba(47,107,255,0.85)" }}
+                                        >
+                                            <div className="text-black text-[18px] font-black">▶</div>
+                                        </div>
+                                        <div className="text-[13px] text-white/70">{lesson.video?.label ?? "Видео урока"}</div>
+                                    </div>
+                                </>
+                            )}
+                            {uploadedVideoName && (
+                                <div className="absolute bottom-2 left-2 rounded-md bg-black/40 px-2 py-1 text-[12px] text-white/80">Загружено: {uploadedVideoName}</div>
+                            )}
                         </div>
                     </div>
 

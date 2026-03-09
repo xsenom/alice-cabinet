@@ -1,7 +1,8 @@
 import React from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import AppLayout from "./layouts/AppLayout";
 import RequireOnboarding from "./components/RequireOnboarding";
+import RequireAdmin from "./components/RequireAdmin";
 
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -11,6 +12,7 @@ import HomePage from "./pages/HomePage";
 import LibraryPage from "./pages/LibraryPage";
 import AssistantPage from "./pages/AssistantPage";
 import ProfilePage from "./pages/ProfilePage";
+import AdminPage from "./pages/AdminPage";
 
 export default function AppRoutes() {
     return (
@@ -19,35 +21,27 @@ export default function AppRoutes() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/reset" element={<ResetPasswordPage />} />
 
-            <Route
-                path="/"
-                element={<AppLayout />}
-            >
+            <Route path="/" element={<AppLayout />}>
                 <Route index element={<HomePage />} />
                 <Route
-                    path="library"
                     element={
                         <RequireOnboarding>
-                            <LibraryPage />
+                            <Outlet />
                         </RequireOnboarding>
                     }
-                />
-                <Route
-                    path="assistant"
-                    element={
-                        <RequireOnboarding>
-                            <AssistantPage />
-                        </RequireOnboarding>
-                    }
-                />
-                <Route
-                    path="profile"
-                    element={
-                        <RequireOnboarding>
-                            <ProfilePage />
-                        </RequireOnboarding>
-                    }
-                />
+                >
+                    <Route path="library" element={<LibraryPage />} />
+                    <Route path="assistant" element={<AssistantPage />} />
+                    <Route path="profile" element={<ProfilePage />} />
+                    <Route
+                        path="admin"
+                        element={
+                            <RequireAdmin>
+                                <AdminPage />
+                            </RequireAdmin>
+                        }
+                    />
+                </Route>
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

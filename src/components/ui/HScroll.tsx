@@ -1,25 +1,45 @@
 import React, { useRef } from "react";
 
 export default function HScroll({
-                                    children,
-                                    className = "",
-                                    step = 280,
-                                }: {
+    children,
+    className = "",
+    step = 280,
+}: {
     children: React.ReactNode;
     className?: string;
     step?: number;
 }) {
     const ref = useRef<HTMLDivElement | null>(null);
+    const draggingRef = useRef(false);
+    const startXRef = useRef(0);
+    const startScrollLeftRef = useRef(0);
 
     const scrollBy = (dx: number) => {
         ref.current?.scrollBy({ left: dx, behavior: "smooth" });
     };
 
+    const onPointerDown: React.PointerEventHandler<HTMLDivElement> = (e) => {
+        const el = ref.current;
+        if (!el) return;
+        draggingRef.current = true;
+        startXRef.current = e.clientX;
+        startScrollLeftRef.current = el.scrollLeft;
+        el.setPointerCapture(e.pointerId);
+    };
+
+    const onPointerMove: React.PointerEventHandler<HTMLDivElement> = (e) => {
+        const el = ref.current;
+        if (!el || !draggingRef.current) return;
+        const dx = e.clientX - startXRef.current;
+        el.scrollLeft = startScrollLeftRef.current - dx;
+    };
+
+    const endDrag = () => {
+        draggingRef.current = false;
+    };
+
     return (
         <div className="relative">
-            {/* left */}
-
-
             <button
                 type="button"
                 onClick={() => scrollBy(-step)}
@@ -31,7 +51,6 @@ export default function HScroll({
                 </svg>
             </button>
 
-            {/* right */}
             <button
                 type="button"
                 onClick={() => scrollBy(step)}
@@ -45,8 +64,13 @@ export default function HScroll({
 
             <div
                 ref={ref}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+                onPointerLeave={endDrag}
                 className={
-                    "flex gap-4 overflow-x-auto pb-2 px-10 scroll-smooth snap-x snap-mandatory " +
+                    "flex gap-4 overflow-x-auto pb-2 px-10 scroll-smooth snap-x snap-mandatory cursor-grab active:cursor-grabbing " +
                     "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden " +
                     className
                 }
