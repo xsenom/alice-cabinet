@@ -19,16 +19,33 @@ export default function AppRoutes() {
 
             <Route
                 path="/"
-                element={
-                    <RequireOnboarding>
-                        <AppLayout />
-                    </RequireOnboarding>
-                }
+                element={<AppLayout />}
             >
                 <Route index element={<HomePage />} />
-                <Route path="library" element={<LibraryPage />} />
-                <Route path="assistant" element={<AssistantPage />} />
-                <Route path="profile" element={<ProfilePage />} />
+                <Route
+                    path="library"
+                    element={
+                        <RequireOnboarding>
+                            <LibraryPage />
+                        </RequireOnboarding>
+                    }
+                />
+                <Route
+                    path="assistant"
+                    element={
+                        <RequireOnboarding>
+                            <AssistantPage />
+                        </RequireOnboarding>
+                    }
+                />
+                <Route
+                    path="profile"
+                    element={
+                        <RequireOnboarding>
+                            <ProfilePage />
+                        </RequireOnboarding>
+                    }
+                />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
