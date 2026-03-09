@@ -35,8 +35,7 @@ function VideoCard({ title, subtitle }: { title: string; subtitle: string }) {
             <div className="mt-3">
                 <div className="text-lg font-semibold leading-tight">{title}</div>
                 <div className="mt-1 text-sm text-[#A9B3AE] line-clamp-2">{subtitle}</div>
-
-                <div className="mt-4 inline-flex items-center gap-2 text-sm text-[#A9B3AE]">
+                <div className="mt-4 inline-flex items-center gap-2 text-sm text-[#A9B3AE] hover:text-[#F2F4F3]">
                     <span className="text-base">▶</span>
                     <span>Смотреть</span>
                 </div>
@@ -125,7 +124,7 @@ export default function HomePage() {
                             <div key={v.id} className="snap-start">
                                 <button
                                     type="button"
-                                    onClick={() => nav(`/app/library?open=${encodeURIComponent(v.id)}`)}
+                                    onClick={() => nav(`/library?open=${encodeURIComponent(v.id)}`)}
                                     className="text-left"
                                 >
                                     <VideoCard title={v.title} subtitle={v.hint} />
