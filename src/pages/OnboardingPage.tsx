@@ -21,7 +21,7 @@ export default function OnboardingPage() {
         if (!userId) return;
 
         const name = fullName.trim();
-        if (name.length < 2) {
+        if (name.length < 2)
             setErr("Имя должно быть минимум 2 символа.");
             return;
         }
