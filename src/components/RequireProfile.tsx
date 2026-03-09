@@ -19,7 +19,7 @@ export default function RequireProfile({ children }: Props) {
         !!profile?.full_name && !!profile?.profession;
 
     if (!isProfileFilled) {
-        return <Navigate to="/onboarding" replace />;
+        return <Navigate to="/profile?onboarding=1" replace />;
     }
 
     return <>{children}</>;

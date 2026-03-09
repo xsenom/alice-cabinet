@@ -4,6 +4,14 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase/client";
 
+function mapSignUpError(message: string) {
+    if (message.includes("Error sending confirmation email")) {
+        return "Не удалось отправить письмо подтверждения. Проверь SMTP в Supabase (Auth → Email → SMTP Settings) или временно выключи Confirm email в Auth settings.";
+    }
+
+    return message;
+}
+
 export default function RegisterPage() {
     const nav = useNavigate();
 
@@ -29,19 +37,22 @@ export default function RegisterPage() {
         const { data, error } = await supabase.auth.signUp({
             email: email.trim(),
             password,
+            options: {
+                emailRedirectTo: `${window.location.origin}/login`,
+            },
         });
 
         setLoading(false);
 
         if (error) {
-            setErr(error.message);
+            setErr(mapSignUpError(error.message));
             return;
         }
 
         // Если подтверждение email включено — сессия может не появиться сразу.
         // В любом случае ведём на логин или на onboarding.
         if (data.session) {
-            nav("/onboarding", { replace: true });
+            nav("/profile?onboarding=1", { replace: true });
         } else {
             setErr("Проверь почту и подтверди email, затем войди в кабинет.");
             // можно: nav("/login")

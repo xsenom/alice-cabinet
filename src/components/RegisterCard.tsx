@@ -8,6 +8,14 @@ function isEmail(v: string) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 }
 
+function mapSignUpError(message: string) {
+    if (message.includes("Error sending confirmation email")) {
+        return "Не удалось отправить письмо подтверждения. Проверь SMTP в Supabase (Auth → Email → SMTP Settings) или временно выключи Confirm email в Auth settings.";
+    }
+
+    return message;
+}
+
 export default function RegisterCard() {
     const navigate = useNavigate();
 
@@ -48,18 +56,21 @@ export default function RegisterCard() {
                 const { error } = await supabase.auth.signUp({
                     email,
                     password,
-                    options: { data: { full_name: name } },
+                    options: {
+                        data: { full_name: name },
+                        emailRedirectTo: `${window.location.origin}/login`,
+                    },
                 });
 
                 if (error) {
-                    setErr(error.message);
+                    setErr(mapSignUpError(error.message));
                     return;
                 }
 
                 // если confirm email выключен — сессия будет сразу
                 const { data: s } = await supabase.auth.getSession();
                 if (s.session) {
-                    navigate("/cabinet", { replace: true });
+                    navigate("/", { replace: true });
                 } else {
                     setInfo("Проверьте почту: отправлена ссылка для подтверждения (если включено подтверждение email).");
                 }
@@ -69,7 +80,7 @@ export default function RegisterCard() {
                     setErr(error.message);
                     return;
                 }
-                navigate("/cabinet", { replace: true });
+                navigate("/", { replace: true });
             }
         } finally {
             setBusy(false);
