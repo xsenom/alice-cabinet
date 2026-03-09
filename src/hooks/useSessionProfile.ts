@@ -106,6 +106,7 @@ export function useSessionProfile(): State {
                     .select(
                         "id,email,full_name,profession,avatar_url,created_at,updated_at"
                     )
+                    .select("id,email,full_name,profession,avatar_url,created_at,updated_at")
                     .single();
 
                 if (insertErr) {
