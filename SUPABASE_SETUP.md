@@ -20,7 +20,7 @@ VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
 
 ## 2) SQL для новой базы
 
-Выполни этот SQL в SQL Editor нового проекта Supabase:
+Выполняй команды **по одной**, отдельными блоками (так проще отлавливать ошибки):
 
 ```sql
 -- profiles table
@@ -53,17 +53,20 @@ for each row execute function public.set_updated_at();
 -- RLS
 alter table public.profiles_les enable row level security;
 
-create policy if not exists "profiles_les_select_own"
+drop policy if exists "profiles_les_select_own" on public.profiles_les;
+create policy "profiles_les_select_own"
 on public.profiles_les
 for select
 using (auth.uid() = id);
 
-create policy if not exists "profiles_les_insert_own"
+drop policy if exists "profiles_les_insert_own" on public.profiles_les;
+create policy "profiles_les_insert_own"
 on public.profiles_les
 for insert
 with check (auth.uid() = id);
 
-create policy if not exists "profiles_les_update_own"
+drop policy if exists "profiles_les_update_own" on public.profiles_les;
+create policy "profiles_les_update_own"
 on public.profiles_les
 for update
 using (auth.uid() = id)
@@ -74,12 +77,14 @@ insert into storage.buckets (id, name, public)
 values ('avatars', 'avatars', true)
 on conflict (id) do nothing;
 
-create policy if not exists "avatars_public_read"
+drop policy if exists "avatars_public_read" on storage.objects;
+create policy "avatars_public_read"
 on storage.objects
 for select
 using (bucket_id = 'avatars');
 
-create policy if not exists "avatars_owner_insert"
+drop policy if exists "avatars_owner_insert" on storage.objects;
+create policy "avatars_owner_insert"
 on storage.objects
 for insert
 with check (
@@ -87,7 +92,8 @@ with check (
   and auth.uid()::text = (storage.foldername(name))[1]
 );
 
-create policy if not exists "avatars_owner_update"
+drop policy if exists "avatars_owner_update" on storage.objects;
+create policy "avatars_owner_update"
 on storage.objects
 for update
 using (

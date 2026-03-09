@@ -4,6 +4,7 @@ import AppLayout from "./layouts/AppLayout";
 import RequireOnboarding from "./components/RequireOnboarding";
 
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 import HomePage from "./pages/HomePage";
@@ -15,6 +16,7 @@ export default function AppRoutes() {
     return (
         <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
             <Route path="/reset" element={<ResetPasswordPage />} />
 
             <Route
