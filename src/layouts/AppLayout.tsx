@@ -7,8 +7,6 @@ import NetworkCanvasBackground from "../components/background/NetworkCanvasBackg
 import ForestBackdrop from "../components/background/ForestBackdrop";
 import { useSessionProfile } from "../hooks/useSessionProfile";
 
-import logo from "../assets/lesik-logo.png";
-
 const TOKENS = { text: "#F2F4F3" };
 
 const NAV: NavItem[] = [
@@ -42,11 +40,15 @@ export default function AppLayout() {
                     <>
                         <main className="mx-auto w-full max-w-md px-4 pt-5 pb-24">
                             <div className="mb-4 flex items-center gap-3">
-                                <img
-                                    src={logo}
-                                    alt="LESik"
-                                    className="h-10 w-10 rounded-full border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.35)] object-cover"
-                                />
+                                {profile?.avatar_url ? (
+                                    <img
+                                        src={profile.avatar_url}
+                                        alt="Аватар"
+                                        className="h-10 w-10 rounded-full border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.35)] object-cover"
+                                    />
+                                ) : (
+                                    <div className="h-10 w-10 rounded-full border border-white/10 bg-black shadow-[0_10px_30px_rgba(0,0,0,0.35)]" />
+                                )}
                                 <div className="text-base font-semibold tracking-tight">
                                     {name ? `${name}, всё получится!` : "LESik"}
                                 </div>
