@@ -1,17 +1,30 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { TopicKey } from "../lib/library/types";
 import { DEMO } from "../lib/library/demo";
 import { TOKENS } from "../lib/library/tokens";
+import { useSessionProfile } from "../hooks/useSessionProfile";
 
 import { LibraryTopBar } from "../components/library/TopBar";
-import { LibraryBottomTabs } from "../components/library/BottomTabs";
 import { LibraryChip } from "../components/library/LibraryChip";
 import { LessonsList } from "../components/library/LessonsList";
 import { LessonScreen } from "../components/library/LessonScreen";
+import Button from "../components/ui/Button";
+
+const TOPICS: TopicKey[] = ["Воронки", "Боты", "AI", "Mini App"];
 
 export default function LibraryPage() {
+    const { profile } = useSessionProfile();
+    const nav = useNavigate();
+    const location = useLocation();
+
     const [topic, setTopic] = useState<TopicKey>("Воронки");
     const [openedLessonId, setOpenedLessonId] = useState<string | null>(null);
+
+    const hasPaid =
+        !!profile?.plan_expires_at &&
+        new Date(profile.plan_expires_at).getTime() > Date.now() &&
+        profile?.plan_status !== "free";
 
     const lessons = useMemo(() => DEMO[topic] ?? [], [topic]);
 
@@ -20,57 +33,70 @@ export default function LibraryPage() {
         return (DEMO[topic] ?? []).find((l) => l.id === openedLessonId) ?? null;
     }, [topic, openedLessonId]);
 
+    useEffect(() => {
+        const openId = new URLSearchParams(location.search).get("open");
+        if (!openId) return;
+
+        for (const t of TOPICS) {
+            const found = (DEMO[t] ?? []).find((l) => l.id === openId);
+            if (found) {
+                if (found.premium && !hasPaid) return;
+                setTopic(t);
+                setOpenedLessonId(found.id);
+                return;
+            }
+        }
+    }, [location.search, hasPaid]);
+
     return (
-        <div className="min-h-screen w-full bg-black flex items-start justify-center p-3">
-            <div
-                className="relative w-[980px] max-w-[98vw] h-[820px] overflow-hidden rounded-[28px] border"
-                style={{
-                    borderColor: "rgba(255,255,255,0.08)",
-                    background: `linear-gradient(180deg, ${TOKENS.bgTop} 0%, ${TOKENS.bgMid} 32%, ${TOKENS.bgBot} 100%)`,
-                }}
-            >
-                <LibraryTopBar />
+        <div
+            className="rounded-[28px] border p-4 md:p-5"
+            style={{
+                borderColor: "rgba(255,255,255,0.08)",
+                background: `linear-gradient(180deg, ${TOKENS.bgTop} 0%, ${TOKENS.bgMid} 32%, ${TOKENS.bgBot} 100%)`,
+            }}
+        >
+            <LibraryTopBar />
 
-                {/* header row */}
-                <div className="px-4 mt-6 flex items-end justify-between gap-4">
-                    <div>
-                        <div className="text-[26px] font-extrabold" style={{ color: TOKENS.text }}>
-                            Библиотека
-                        </div>
-                        <div className="mt-2 text-[14px]" style={{ color: TOKENS.textDim }}>
-                            Темы, уроки, видео, PDF, задания и комментарии
-                        </div>
+            <div className="mt-5">
+                <div className="text-[34px] font-extrabold" style={{ color: TOKENS.text }}>
+                    Библиотека
+                </div>
+                <div className="mt-2 text-[14px]" style={{ color: TOKENS.textDim }}>
+                    Темы, уроки, видео, PDF, задания и комментарии
+                </div>
+            </div>
+
+            <div className="mt-4 flex gap-2 overflow-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {TOPICS.map((t) => (
+                    <LibraryChip
+                        key={t}
+                        active={topic === t}
+                        onClick={() => {
+                            setTopic(t);
+                            setOpenedLessonId(null);
+                        }}
+                    >
+                        {t}
+                    </LibraryChip>
+                ))}
+            </div>
+
+            {!hasPaid ? (
+                <div className="mt-4 rounded-2xl border border-[#C57A24]/30 bg-[#7E3D0A]/20 p-3 text-sm text-orange-100">
+                    У вас бесплатный доступ: часть видео в темах Боты / AI / Mini App будет закрыта.
+                    <div className="mt-2">
+                        <Button onClick={() => nav("/profile")}>Открыть подписку</Button>
                     </div>
                 </div>
+            ) : null}
 
-                {/* topic chips */}
-                <div className="px-4 mt-4">
-                    <div className="flex gap-2 overflow-auto pb-1" style={{ maskImage: "linear-gradient(90deg, black 92%, transparent 100%)" }}>
-                        {(["Воронки", "Боты", "AI", "Mini App"] as TopicKey[]).map((t) => (
-                            <LibraryChip
-                                key={t}
-                                active={topic === t}
-                                onClick={() => {
-                                    setTopic(t);
-                                    setOpenedLessonId(null);
-                                }}
-                            >
-                                {t}
-                            </LibraryChip>
-                        ))}
-                    </div>
-                </div>
-
-                {/* main */}
-                <div className="px-4 mt-5 pb-[120px] h-[640px] overflow-auto">
-                    {!opened ? (
-                        <LessonsList topic={topic} lessons={lessons} onOpenLesson={(id) => setOpenedLessonId(id)} />
-                    ) : (
-                        <LessonScreen topic={topic} lesson={opened} onClose={() => setOpenedLessonId(null)} />
-                    )}
-                </div>
-
-                <LibraryBottomTabs />
+            <div className="mt-5">
+                {!opened ? (
+                    <LessonsList topic={topic} lessons={lessons} onOpenLesson={(id) => setOpenedLessonId(id)} hasPaid={hasPaid} />
+                ) : (
+                    <LessonScreen topic={topic} lesson={opened} onClose={() => setOpenedLessonId(null)} />
+                )}
             </div>
         </div>
     );

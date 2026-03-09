@@ -1,5 +1,10 @@
 import type { Lesson, TopicKey } from "./types";
 
+const FALLBACK_TASK = {
+    title: "Домашнее задание",
+    questions: [{ id: "q1", text: "Сделайте конспект ключевых шагов и примените их в своём проекте.", required: true }],
+};
+
 export const DEMO: Record<TopicKey, Lesson[]> = {
     Воронки: [
         {
@@ -7,78 +12,59 @@ export const DEMO: Record<TopicKey, Lesson[]> = {
             n: 1,
             title: "Продуктовая линейка",
             needTask: true,
-            goal:
-                "Разобраться, что такое продуктовая линейка, которая поможет клиенту постепенно проходить путь от знакомства с вами до совершения основной покупки.",
-            video: { label: "Урок 01 — Продуктовая линейка" },
+            goal: "Разобраться в логике продуктовой линейки и пути клиента.",
+            video: { label: "Урок 01 — Продуктовая линейка", url: "/videos/funnel-01.mp4" },
             pdfs: [{ name: "Шаблон продуктовой линейки.pdf", pages: 2 }],
-            task: {
-                title: "Домашнее задание",
-                questions: [
-                    { id: "q1", text: "Составьте продуктовую линейку, опираясь на ваши компетенции и боли ЦА.", required: true },
-                    { id: "q2", text: "Объясните путь клиента и логику вашей продуктовой линейки.", required: true },
-                ],
-            },
+            task: FALLBACK_TASK,
         },
         {
             id: "f02",
             n: 2,
             title: "Прогревы",
             needTask: true,
-            goal: "Понять, как выстраивать прогрев: структура сообщений, триггеры доверия, призывы к действию.",
-            video: { label: "Урок 02 — Прогревы" },
+            goal: "Понять структуру прогревов и точки касания.",
+            video: { label: "Урок 02 — Прогревы", url: "/videos/funnel-02.mp4" },
             pdfs: [{ name: "Схемы прогрева.pdf", pages: 3 }],
-            task: {
-                title: "Домашнее задание",
-                questions: [
-                    { id: "q1", text: "Соберите 5 сообщений прогрева под ваш продукт.", required: true },
-                    { id: "q2", text: "Добавьте 2 триггера доверия и 1 кейс/историю.", required: false },
-                ],
-            },
-        },
-        {
-            id: "f03",
-            n: 3,
-            title: "Воронки продаж: основная информация и виды воронок",
-            needTask: false,
-            goal: "Разобраться в типах воронок и выбрать подходящую модель под ваш продукт.",
-            video: { label: "Урок 03 — Виды воронок" },
-            pdfs: [{ name: "Конспект урока 03.pdf", pages: 4 }],
-            task: {
-                title: "Задание",
-                questions: [{ id: "q1", text: "Выберите 1 тип воронки и объясните почему.", required: false }],
-            },
-        },
-        {
-            id: "f04",
-            n: 4,
-            title: "Создание продающей воронки в 4 шага",
-            needTask: true,
-            goal: "Собрать каркас воронки и определить шаги, контент и метрики.",
-            video: { label: "Урок 04 — Воронка в 4 шага" },
-            pdfs: [{ name: "Чек-лист 4 шага.pdf", pages: 2 }],
-            task: {
-                title: "Домашнее задание",
-                questions: [{ id: "q1", text: "Опишите 4 шага вашей воронки (вход → прогрев → оффер → закрытие).", required: true }],
-            },
-        },
-        {
-            id: "f05",
-            n: 5,
-            title: "Продажи в Директе (переписка с клиентом)",
-            needTask: true,
-            goal: "Построить диалог продаж: вопросы, отработка возражений, закрытие на оплату.",
-            video: { label: "Урок 05 — Продажи в Директе" },
-            pdfs: [{ name: "Скрипт переписки.pdf", pages: 3 }],
-            task: {
-                title: "Домашнее задание",
-                questions: [
-                    { id: "q1", text: "Соберите скрипт диалога из 7–10 сообщений.", required: true },
-                    { id: "q2", text: "Пропишите 3 возражения и ответы на них.", required: true },
-                ],
-            },
+            task: FALLBACK_TASK,
         },
     ],
-    Боты: [],
-    AI: [],
-    "Mini App": [],
+    Боты: [
+        {
+            id: "b01",
+            n: 1,
+            title: "Сценарии бота и ветвления",
+            needTask: true,
+            premium: true,
+            goal: "Собрать структуру диалога и логику ветвления.",
+            video: { label: "Боты 01 — Сценарии", url: "/videos/bot-01.mp4" },
+            pdfs: [{ name: "Карта сценариев.pdf", pages: 2 }],
+            task: FALLBACK_TASK,
+        },
+    ],
+    AI: [
+        {
+            id: "ai01",
+            n: 1,
+            title: "AI-ассистент для контента",
+            needTask: false,
+            premium: true,
+            goal: "Автоматизировать генерацию контента и рубрик.",
+            video: { label: "AI 01 — Ассистент", url: "/videos/ai-01.mp4" },
+            pdfs: [{ name: "Промпт-пак.pdf", pages: 1 }],
+            task: FALLBACK_TASK,
+        },
+    ],
+    "Mini App": [
+        {
+            id: "m01",
+            n: 1,
+            title: "Mini App: экран каталога",
+            needTask: false,
+            premium: true,
+            goal: "Понять как собрать структуру Mini App в Telegram.",
+            video: { label: "Mini App 01 — Каталог", url: "/videos/miniapp-01.mp4" },
+            pdfs: [{ name: "Mini App wireframe.pdf", pages: 2 }],
+            task: FALLBACK_TASK,
+        },
+    ],
 };
