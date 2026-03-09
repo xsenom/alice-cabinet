@@ -96,16 +96,17 @@ export function useSessionProfile(): State {
             if (!prof) {
                 const { data: inserted, error: insertErr } = await supabase
                     .from("profiles_les")
-                    .insert({
-                        id: u.id,
-                        email: u.email ?? null,
-                        full_name: null,
-                        profession: null,
-                        avatar_url: null,
-                    })
-                    .select(
-                        "id,email,full_name,profession,avatar_url,created_at,updated_at"
+                    .upsert(
+                        {
+                            id: u.id,
+                            email: u.email ?? null,
+                            full_name: null,
+                            profession: null,
+                            avatar_url: null,
+                        },
+                        { onConflict: "id" }
                     )
+                    .select("id,email,full_name,profession,avatar_url,created_at,updated_at")
                     .single();
 
                 if (insertErr) {

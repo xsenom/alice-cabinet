@@ -35,10 +35,11 @@ function VideoCard({ title, subtitle }: { title: string; subtitle: string }) {
             <div className="mt-3">
                 <div className="text-lg font-semibold leading-tight">{title}</div>
                 <div className="mt-1 text-sm text-[#A9B3AE] line-clamp-2">{subtitle}</div>
-                <button className="mt-4 inline-flex items-center gap-2 text-sm text-[#A9B3AE] hover:text-[#F2F4F3]">
+
+                <div className="mt-4 inline-flex items-center gap-2 text-sm text-[#A9B3AE]">
                     <span className="text-base">▶</span>
                     <span>Смотреть</span>
-                </button>
+                </div>
             </div>
         </div>
     );
