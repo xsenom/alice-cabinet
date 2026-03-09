@@ -27,12 +27,19 @@ VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
 create table if not exists public.profiles_les (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
+  original_email text,
   full_name text,
   profession text,
   avatar_url text,
+  plan_status text not null default 'free',
+  plan_expires_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles_les add column if not exists original_email text;
+alter table public.profiles_les add column if not exists plan_status text not null default 'free';
+alter table public.profiles_les add column if not exists plan_expires_at timestamptz;
 
 -- updated_at trigger
 create or replace function public.set_updated_at()
