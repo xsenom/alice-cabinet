@@ -1,21 +1,25 @@
 import React from "react";
 import { TOKENS } from "../../lib/library/tokens";
+import { useSessionProfile } from "../../hooks/useSessionProfile";
 
 export function LibraryTopBar() {
+    const { profile } = useSessionProfile();
+    const name = profile?.full_name?.trim() || "друг";
+
     return (
-        <div className="px-4 pt-4">
+        <div className="px-2 pt-1">
             <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-full border flex items-center justify-center" style={{ borderColor: "rgba(255,255,255,0.14)" }}>
-                    <div
-                        className="h-7 w-7 rounded-full"
-                        style={{
-                            background: "radial-gradient(circle at 30% 30%, rgba(0,230,118,0.85), rgba(0,230,118,0.05) 60%)",
-                            boxShadow: "0 0 18px rgba(0,230,118,0.18)",
-                        }}
+                {profile?.avatar_url ? (
+                    <img
+                        src={profile.avatar_url}
+                        alt="Аватар"
+                        className="h-10 w-10 rounded-full border border-white/15 object-cover"
                     />
-                </div>
-                <div className="text-[16px] font-semibold tracking-tight" style={{ color: TOKENS.text }}>
-                    Илья, всё получится!
+                ) : (
+                    <div className="h-10 w-10 rounded-full border border-white/15 bg-black" />
+                )}
+                <div className="text-[18px] font-semibold tracking-tight" style={{ color: TOKENS.text }}>
+                    {name}, всё получится!
                 </div>
             </div>
         </div>

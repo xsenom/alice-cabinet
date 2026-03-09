@@ -33,6 +33,7 @@ export type Lesson = {
     title: string;              // <-- string
     goal: string;               // <-- string
     needTask: boolean;
+    premium?: boolean;
     video?: LessonVideo;
     pdfs: LessonPdf[];
     task: LessonTask;
