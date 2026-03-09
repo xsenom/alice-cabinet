@@ -1,12 +1,22 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase/client";
 import { useSessionProfile } from "../hooks/useSessionProfile";
+import Button from "../components/ui/Button";
+
+type Plan = "free" | "paid_1m" | "paid_3m";
+
+function getNextExpiry(months: number) {
+    const dt = new Date();
+    dt.setMonth(dt.getMonth() + months);
+    return dt.toISOString();
+}
 
 export default function ProfilePage() {
     const { profile, refresh } = useSessionProfile();
     const nav = useNavigate();
     const loc = useLocation();
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     const onboarding = useMemo(
         () => new URLSearchParams(loc.search).get("onboarding") === "1",
@@ -16,19 +26,27 @@ export default function ProfilePage() {
     const [fullName, setFullName] = useState<string | null>(null);
     const [profession, setProfession] = useState<string | null>(null);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [newEmail, setNewEmail] = useState("");
     const [saving, setSaving] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [updatingEmail, setUpdatingEmail] = useState(false);
+    const [changingPlan, setChangingPlan] = useState(false);
+    const [notice, setNotice] = useState<string | null>(null);
     const [err, setErr] = useState<string | null>(null);
-
 
     const formFullName = fullName ?? profile?.full_name ?? "";
     const formProfession = profession ?? profile?.profession ?? "";
     const formAvatarUrl = avatarUrl ?? profile?.avatar_url ?? "";
 
+    const currentPlan: Plan = profile?.plan_status ?? "free";
+    const planExpireDate = profile?.plan_expires_at ? new Date(profile.plan_expires_at) : null;
+    const hasPaidAccess = !!(planExpireDate && planExpireDate.getTime() > Date.now() && currentPlan !== "free");
+
     const uploadAvatar = async (file?: File) => {
         if (!file) return;
 
         setErr(null);
+        setNotice(null);
         setUploadingAvatar(true);
 
         const { data: u } = await supabase.auth.getUser();
@@ -76,6 +94,7 @@ export default function ProfilePage() {
     const save = async () => {
         setSaving(true);
         setErr(null);
+        setNotice(null);
 
         const name = formFullName.trim();
         const prof = formProfession.trim();
@@ -97,7 +116,12 @@ export default function ProfilePage() {
 
         const { error } = await supabase
             .from("profiles_les")
-            .update({ full_name: name, profession: prof, avatar_url: formAvatarUrl || null })
+            .update({
+                full_name: name,
+                profession: prof,
+                avatar_url: formAvatarUrl || null,
+                original_email: profile?.original_email ?? profile?.email ?? null,
+            })
             .eq("id", userId);
 
         if (error) {
@@ -107,33 +131,135 @@ export default function ProfilePage() {
         }
 
         await refresh();
+        setSaving(false);
 
-        if (onboarding) {
-            // после онбординга на главную
-            nav("/", { replace: true });
-        }
+        if (onboarding) nav("/", { replace: true });
     };
 
-    // onboarding режим
+    const changeEmail = async () => {
+        const email = newEmail.trim();
+        if (!email) return;
+
+        setUpdatingEmail(true);
+        setErr(null);
+        setNotice(null);
+
+        const { data: u } = await supabase.auth.getUser();
+        const userId = u.user?.id;
+
+        if (!userId) {
+            setErr("Нет сессии. Перелогинься.");
+            setUpdatingEmail(false);
+            return;
+        }
+
+        if (profile?.email === email) {
+            setErr("Это уже текущая почта.");
+            setUpdatingEmail(false);
+            return;
+        }
+
+        const { error: authErr } = await supabase.auth.updateUser({ email });
+        if (authErr) {
+            setErr(authErr.message);
+            setUpdatingEmail(false);
+            return;
+        }
+
+        const { error: profileErr } = await supabase
+            .from("profiles_les")
+            .update({
+                email,
+                original_email: profile?.original_email ?? profile?.email ?? email,
+            })
+            .eq("id", userId);
+
+        if (profileErr) {
+            setErr(profileErr.message);
+            setUpdatingEmail(false);
+            return;
+        }
+
+        setNotice("Почта изменена. Подтверди новый email в письме. Вход дальше нужно делать по новой почте.");
+        setNewEmail("");
+        setUpdatingEmail(false);
+        await refresh();
+    };
+
+    const setPlan = async (plan: Exclude<Plan, "free">) => {
+        setChangingPlan(true);
+        setErr(null);
+        setNotice(null);
+
+        const { data: u } = await supabase.auth.getUser();
+        const userId = u.user?.id;
+
+        if (!userId) {
+            setErr("Нет сессии. Перелогинься.");
+            setChangingPlan(false);
+            return;
+        }
+
+        const months = plan === "paid_1m" ? 1 : 3;
+        const { error } = await supabase
+            .from("profiles_les")
+            .update({
+                plan_status: plan,
+                plan_expires_at: getNextExpiry(months),
+            })
+            .eq("id", userId);
+
+        if (error) {
+            setErr(error.message);
+            setChangingPlan(false);
+            return;
+        }
+
+        setNotice(`Тариф активирован на ${months} мес.`);
+        setChangingPlan(false);
+        await refresh();
+    };
+
     return (
         <div className="rounded-2xl border border-white/10 bg-[rgba(6,17,13,0.65)] backdrop-blur-xl shadow-[0_16px_50px_rgba(0,0,0,0.55)] p-5">
             <div className="text-lg font-semibold">{onboarding ? "Давай познакомимся" : "Профиль"}</div>
-            {onboarding ? (
-                <div className="mt-1 text-sm text-white/70">
-                    Это займёт 30 секунд. Без этого меню не откроется.
-                </div>
-            ) : (
-                <div className="mt-1 text-sm text-white/70">Обнови данные профиля и аватар в любой момент.</div>
-            )}
 
             <div className="mt-5 grid gap-3">
+                <div className="flex flex-col items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+                        aria-label="Изменить аватар"
+                        title="Нажми, чтобы сменить аватар"
+                    >
+                        {formAvatarUrl ? (
+                            <img
+                                src={formAvatarUrl}
+                                alt="Аватар"
+                                className="h-24 w-24 rounded-full object-cover border border-white/20"
+                            />
+                        ) : (
+                            <div className="h-24 w-24 rounded-full border border-white/20 bg-black" />
+                        )}
+                    </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => uploadAvatar(e.target.files?.[0])}
+                        className="hidden"
+                    />
+                    <div className="text-xs text-white/65">Нажми на аватар, чтобы изменить</div>
+                    {uploadingAvatar ? <div className="text-xs text-white/60">Загружаю аватар…</div> : null}
+                </div>
+
                 <label className="grid gap-1">
                     <span className="text-xs text-white/70">Имя</span>
                     <input
                         value={formFullName}
                         onChange={(e) => setFullName(e.target.value)}
                         className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 outline-none focus:border-white/25"
-                        placeholder="Например: Илья"
                     />
                 </label>
 
@@ -143,37 +269,45 @@ export default function ProfilePage() {
                         value={formProfession}
                         onChange={(e) => setProfession(e.target.value)}
                         className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 outline-none focus:border-white/25"
-                        placeholder="Например: маркетолог / дизайнер / предприниматель"
                     />
                 </label>
 
-                <div className="text-xs text-white/70">Email: {profile?.email ?? "—"}</div>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
+                    <div>Текущая почта: <span className="text-white/90">{profile?.email ?? "—"}</span></div>
+                    <div className="text-xs text-white/60 mt-1">Первоначальная почта (сохраняется): {profile?.original_email ?? profile?.email ?? "—"}</div>
+                    <div className="mt-3 flex gap-2">
+                        <input
+                            value={newEmail}
+                            onChange={(e) => setNewEmail(e.target.value)}
+                            placeholder="Новая почта"
+                            className="flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2 outline-none focus:border-white/25"
+                        />
+                        <Button onClick={changeEmail} disabled={updatingEmail || !newEmail.trim()}>
+                            {updatingEmail ? "Смена..." : "Сменить"}
+                        </Button>
+                    </div>
+                    <div className="mt-2 text-xs text-orange-200/90">После смены почты нужно входить по новой почте. Для сброса пароля используйте актуальный email.</div>
+                </div>
 
-                <label className="grid gap-1">
-                    <span className="text-xs text-white/70">Аватар</span>
-                    {formAvatarUrl ? (
-                        <img src={formAvatarUrl} alt="Аватар" className="h-20 w-20 rounded-full object-cover border border-white/20" />
-                    ) : (
-                        <div className="text-xs text-white/50">Аватар ещё не загружен</div>
-                    )}
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => uploadAvatar(e.target.files?.[0])}
-                        className="text-sm"
-                    />
-                    {uploadingAvatar ? <div className="text-xs text-white/60">Загружаю аватар…</div> : null}
-                </label>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
+                    <div>
+                        Статус: {hasPaidAccess ? "Платный" : "Бесплатный"}
+                        {hasPaidAccess && planExpireDate ? ` (до ${planExpireDate.toLocaleDateString("ru-RU")})` : ""}
+                    </div>
+                    {!hasPaidAccess ? (
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            <Button onClick={() => setPlan("paid_1m")} disabled={changingPlan}>Оплатить 1 месяц</Button>
+                            <Button onClick={() => setPlan("paid_3m")} disabled={changingPlan}>Оплатить 3 месяца</Button>
+                        </div>
+                    ) : null}
+                </div>
 
                 {err ? <div className="text-sm text-red-300">{err}</div> : null}
+                {notice ? <div className="text-sm text-emerald-300">{notice}</div> : null}
 
-                <button
-                    onClick={save}
-                    disabled={saving}
-                    className="mt-2 rounded-xl bg-[#61FF8A] text-black font-semibold px-4 py-2 disabled:opacity-60"
-                >
+                <Button onClick={save} disabled={saving} className="mt-2 w-full">
                     {saving ? "Сохраняю..." : onboarding ? "Сохранить и продолжить" : "Сохранить"}
-                </button>
+                </Button>
             </div>
         </div>
     );
