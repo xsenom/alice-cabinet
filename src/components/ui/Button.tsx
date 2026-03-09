@@ -35,10 +35,10 @@ export default function Button({
                 "hover:brightness-[1.03]",
             ].join(" ")
             : variant === "chip"
-                ? "bg-white/5 text-white border border-white/10 hover:bg-white/10"
+                ? "text-[#07120E] bg-[#A85A12] border border-[#C57A24]/30 hover:brightness-[1.03]"
                 : variant === "danger"
-                    ? "bg-red-500/15 text-red-100 border border-red-400/25 hover:bg-red-500/20"
-                    : "bg-transparent text-white border border-white/10 hover:bg-white/5";
+                    ? "text-[#07120E] bg-[#A85A12] border border-[#C57A24]/30 hover:brightness-[1.03]"
+                    : "text-[#07120E] bg-[#A85A12] border border-[#C57A24]/30 hover:brightness-[1.03]";
 
     return (
         <button
