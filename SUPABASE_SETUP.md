@@ -111,6 +111,32 @@ with check (
   bucket_id = 'avatars'
   and auth.uid()::text = (storage.foldername(name))[1]
 );
+
+
+-- assistant free usage per day
+create table if not exists public.assistant_usage_les (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date_key date not null,
+  questions_count int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, date_key)
+);
+
+alter table public.assistant_usage_les enable row level security;
+
+drop policy if exists "assistant_usage_les_select_own" on public.assistant_usage_les;
+create policy "assistant_usage_les_select_own"
+on public.assistant_usage_les
+for select
+using (auth.uid() = user_id);
+
+drop policy if exists "assistant_usage_les_upsert_own" on public.assistant_usage_les;
+create policy "assistant_usage_les_upsert_own"
+on public.assistant_usage_les
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
 ```
 
 ## 3) CLI-команды (опционально)
