@@ -31,6 +31,7 @@ create table if not exists public.profiles_les (
   full_name text,
   profession text,
   avatar_url text,
+  status_admin boolean not null default false,
   plan_status text not null default 'free',
   plan_expires_at timestamptz,
   created_at timestamptz not null default now(),
@@ -38,6 +39,7 @@ create table if not exists public.profiles_les (
 );
 
 alter table public.profiles_les add column if not exists original_email text;
+alter table public.profiles_les add column if not exists status_admin boolean not null default false;
 alter table public.profiles_les add column if not exists plan_status text not null default 'free';
 alter table public.profiles_les add column if not exists plan_expires_at timestamptz;
 

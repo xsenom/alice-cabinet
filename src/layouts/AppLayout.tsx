@@ -9,7 +9,7 @@ import { useSessionProfile } from "../hooks/useSessionProfile";
 
 const TOKENS = { text: "#F2F4F3" };
 
-const NAV: NavItem[] = [
+const BASE_NAV: NavItem[] = [
     { to: "/", label: "Главная", icon: "home" },
     { to: "/library", label: "Библиотека", icon: "library" },
     { to: "/assistant", label: "Ассистент", icon: "assistant" },
@@ -23,6 +23,10 @@ export default function AppLayout() {
     const { profile } = useSessionProfile();
     const name = (profile?.full_name ?? "").trim();
 
+    const navItems: NavItem[] = profile?.status_admin
+        ? [...BASE_NAV, { to: "/admin", label: "Админ", icon: "admin" }]
+        : BASE_NAV;
+
     return (
         <div className="min-h-screen" style={{ color: TOKENS.text }}>
             <ForestBackdrop />
@@ -31,7 +35,7 @@ export default function AppLayout() {
             <div className={isDesktop ? "mx-auto max-w-6xl px-6 py-6" : ""}>
                 {isDesktop ? (
                     <div className="grid grid-cols-[280px_1fr] gap-6">
-                        <DesktopSidebar items={NAV} />
+                        <DesktopSidebar items={navItems} />
                         <main className="min-w-0">
                             <Outlet />
                         </main>
@@ -56,7 +60,7 @@ export default function AppLayout() {
 
                             <Outlet />
                         </main>
-                        <MobileTabs items={NAV} />
+                        <MobileTabs items={navItems} />
                     </>
                 )}
             </div>

@@ -5,7 +5,7 @@ import { NavLink, useLocation } from "react-router-dom";
 export type NavItem = {
     to: string;
     label: string;
-    icon: "home" | "library" | "assistant" | "profile";
+    icon: "home" | "library" | "assistant" | "profile" | "admin";
 };
 
 // Активный таб — в медно-янтарной гамме как твоя primary Button
@@ -48,11 +48,21 @@ function TabIcon({ name, active }: { name: NavItem["icon"]; active?: boolean }) 
             </svg>
         );
 
-    // profile
+    if (name === "profile") {
+        return (
+            <svg viewBox="0 0 24 24" className={`${base} ${c}`} fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4z" />
+                <path d="M4 20a8 8 0 0 1 16 0" />
+            </svg>
+        );
+    }
+
     return (
         <svg viewBox="0 0 24 24" className={`${base} ${c}`} fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4z" />
-            <path d="M4 20a8 8 0 0 1 16 0" />
+            <rect x="4" y="3" width="16" height="18" rx="2" />
+            <path d="M9 8h6" />
+            <path d="M9 12h6" />
+            <path d="M9 16h3" />
         </svg>
     );
 }
@@ -62,7 +72,13 @@ export default function MobileTabs({ items }: { items: NavItem[] }) {
 
     // Tailwind не любит динамику grid-cols-${n} → фикс/мап
     const gridColsClass =
-        items.length === 4 ? "grid-cols-4" : items.length === 3 ? "grid-cols-3" : "grid-cols-2";
+        items.length === 5
+            ? "grid-cols-5"
+            : items.length === 4
+                ? "grid-cols-4"
+                : items.length === 3
+                    ? "grid-cols-3"
+                    : "grid-cols-2";
 
     return (
         <div className="fixed inset-x-0 bottom-0 z-20">
