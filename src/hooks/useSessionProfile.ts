@@ -15,6 +15,7 @@ export type CabinetProfile = {
     email: string | null;
     full_name: string | null;
     profession: string | null;
+    avatar_url: string | null;
     created_at?: string;
     updated_at?: string;
 };
@@ -79,7 +80,7 @@ export function useSessionProfile(): State {
             const { data: prof, error: profErr } = await supabase
                 .from("profiles_les")
                 .select(
-                    "id,email,full_name,profession,created_at,updated_at"
+                    "id,email,full_name,profession,avatar_url,created_at,updated_at"
                 )
                 .eq("id", u.id)
                 .maybeSingle();
@@ -100,9 +101,10 @@ export function useSessionProfile(): State {
                         email: u.email ?? null,
                         full_name: null,
                         profession: null,
+                        avatar_url: null,
                     })
                     .select(
-                        "id,email,full_name,profession,created_at,updated_at"
+                        "id,email,full_name,profession,avatar_url,created_at,updated_at"
                     )
                     .single();
 
@@ -118,8 +120,15 @@ export function useSessionProfile(): State {
                 return;
             }
 
+            if (prof.email !== (u.email ?? null)) {
+                await supabase
+                    .from("profiles_les")
+                    .update({ email: u.email ?? null })
+                    .eq("id", u.id);
+            }
+
             // 4️⃣ Если профиль найден
-            setProfile(prof as CabinetProfile);
+            setProfile({ ...(prof as CabinetProfile), email: u.email ?? null });
             setLoading(false);
         })().finally(() => {
             inFlight.current = null;
