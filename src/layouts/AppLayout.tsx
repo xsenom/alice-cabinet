@@ -23,7 +23,6 @@ export default function AppLayout() {
     const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
     const { profile } = useSessionProfile();
-    const completed = !!(profile?.full_name?.trim() && profile?.profession?.trim());
     const name = (profile?.full_name ?? "").trim();
 
     return (
@@ -34,7 +33,7 @@ export default function AppLayout() {
             <div className={isDesktop ? "mx-auto max-w-6xl px-6 py-6" : ""}>
                 {isDesktop ? (
                     <div className="grid grid-cols-[280px_1fr] gap-6">
-                        {completed ? <DesktopSidebar items={NAV} /> : <div />}
+                        <DesktopSidebar items={NAV} />
                         <main className="min-w-0">
                             <Outlet />
                         </main>
@@ -55,8 +54,7 @@ export default function AppLayout() {
 
                             <Outlet />
                         </main>
-
-                        {completed ? <MobileTabs items={NAV} /> : null}
+                        <MobileTabs items={NAV} />
                     </>
                 )}
             </div>

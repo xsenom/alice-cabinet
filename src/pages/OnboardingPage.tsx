@@ -21,7 +21,7 @@ export default function OnboardingPage() {
         if (!userId) return;
 
         const name = fullName.trim();
-        if (name.length < 2)
+        if (name.length < 2) {
             setErr("Имя должно быть минимум 2 символа.");
             return;
         }
@@ -31,8 +31,7 @@ export default function OnboardingPage() {
         const email = u.user?.email ?? null;
 
         const { error } = await supabase
-            .schema("cabinet")
-            .from("profiles")
+            .from("profiles_les")
             .upsert({ id: userId, email, full_name: name }, { onConflict: "id" });
 
         setSaving(false);
