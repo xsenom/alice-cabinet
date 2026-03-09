@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase/client";
 import { useSessionProfile } from "../hooks/useSessionProfile";
@@ -16,6 +16,7 @@ export default function ProfilePage() {
     const { profile, refresh } = useSessionProfile();
     const nav = useNavigate();
     const loc = useLocation();
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     const onboarding = useMemo(
         () => new URLSearchParams(loc.search).get("onboarding") === "1",
@@ -113,14 +114,15 @@ export default function ProfilePage() {
             return;
         }
 
-        const payload = {
-            full_name: name,
-            profession: prof,
-            avatar_url: formAvatarUrl || null,
-            original_email: profile?.original_email ?? profile?.email ?? null,
-        };
-
-        const { error } = await supabase.from("profiles_les").update(payload).eq("id", userId);
+        const { error } = await supabase
+            .from("profiles_les")
+            .update({
+                full_name: name,
+                profession: prof,
+                avatar_url: formAvatarUrl || null,
+                original_email: profile?.original_email ?? profile?.email ?? null,
+            })
+            .eq("id", userId);
 
         if (error) {
             setErr(error.message);
@@ -131,9 +133,7 @@ export default function ProfilePage() {
         await refresh();
         setSaving(false);
 
-        if (onboarding) {
-            nav("/", { replace: true });
-        }
+        if (onboarding) nav("/", { replace: true });
     };
 
     const changeEmail = async () => {
@@ -193,6 +193,7 @@ export default function ProfilePage() {
 
         const { data: u } = await supabase.auth.getUser();
         const userId = u.user?.id;
+
         if (!userId) {
             setErr("Нет сессии. Перелогинься.");
             setChangingPlan(false);
@@ -200,7 +201,6 @@ export default function ProfilePage() {
         }
 
         const months = plan === "paid_1m" ? 1 : 3;
-
         const { error } = await supabase
             .from("profiles_les")
             .update({
@@ -226,22 +226,31 @@ export default function ProfilePage() {
 
             <div className="mt-5 grid gap-3">
                 <div className="flex flex-col items-center gap-2">
-                    {formAvatarUrl ? (
-                        <img src={formAvatarUrl} alt="Аватар" className="h-24 w-24 rounded-full object-cover border border-white/20" />
-                    ) : (
-                        <div className="h-24 w-24 rounded-full border border-white/20 bg-white/5 grid place-items-center text-xs text-white/60">
-                            Нет фото
-                        </div>
-                    )}
-                    <label className="text-xs text-white/70 text-center">
-                        Выберите файл
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => uploadAvatar(e.target.files?.[0])}
-                            className="mt-1 block text-sm"
-                        />
-                    </label>
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+                        aria-label="Изменить аватар"
+                        title="Нажми, чтобы сменить аватар"
+                    >
+                        {formAvatarUrl ? (
+                            <img
+                                src={formAvatarUrl}
+                                alt="Аватар"
+                                className="h-24 w-24 rounded-full object-cover border border-white/20"
+                            />
+                        ) : (
+                            <div className="h-24 w-24 rounded-full border border-white/20 bg-black" />
+                        )}
+                    </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => uploadAvatar(e.target.files?.[0])}
+                        className="hidden"
+                    />
+                    <div className="text-xs text-white/65">Нажми на аватар, чтобы изменить</div>
                     {uploadingAvatar ? <div className="text-xs text-white/60">Загружаю аватар…</div> : null}
                 </div>
 
@@ -287,12 +296,8 @@ export default function ProfilePage() {
                     </div>
                     {!hasPaidAccess ? (
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                            <Button onClick={() => setPlan("paid_1m")} disabled={changingPlan}>
-                                Оплатить 1 месяц
-                            </Button>
-                            <Button onClick={() => setPlan("paid_3m")} disabled={changingPlan}>
-                                Оплатить 3 месяца
-                            </Button>
+                            <Button onClick={() => setPlan("paid_1m")} disabled={changingPlan}>Оплатить 1 месяц</Button>
+                            <Button onClick={() => setPlan("paid_3m")} disabled={changingPlan}>Оплатить 3 месяца</Button>
                         </div>
                     ) : null}
                 </div>

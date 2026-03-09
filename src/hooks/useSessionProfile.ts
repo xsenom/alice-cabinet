@@ -31,15 +31,27 @@ type State = {
     refresh: () => Promise<void>;
 };
 
+type CacheState = {
+    user: SessionUser | null;
+    profile: CabinetProfile | null;
+    error: string | null;
+};
+
+let cacheState: CacheState = {
+    user: null,
+    profile: null,
+    error: null,
+};
+
 /* =========================
    Hook
 ========================= */
 
 export function useSessionProfile(): State {
-    const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState<SessionUser | null>(null);
-    const [profile, setProfile] = useState<CabinetProfile | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(!cacheState.user && !cacheState.profile);
+    const [user, setUser] = useState<SessionUser | null>(cacheState.user);
+    const [profile, setProfile] = useState<CabinetProfile | null>(cacheState.profile);
+    const [error, setError] = useState<string | null>(cacheState.error);
 
     // защита от двойного вызова в StrictMode
     const inFlight = useRef<Promise<void> | null>(null);
@@ -48,7 +60,7 @@ export function useSessionProfile(): State {
         if (inFlight.current) return inFlight.current;
 
         const promise = (async () => {
-            setLoading(true);
+            if (!cacheState.profile) setLoading(true);
             setError(null);
 
             // 1️⃣ Получаем пользователя
@@ -59,6 +71,7 @@ export function useSessionProfile(): State {
                 setUser(null);
                 setProfile(null);
                 setError(userErr.message);
+                cacheState = { user: null, profile: null, error: userErr.message };
                 setLoading(false);
                 return;
             }
@@ -68,6 +81,7 @@ export function useSessionProfile(): State {
             if (!u) {
                 setUser(null);
                 setProfile(null);
+                cacheState = { user: null, profile: null, error: null };
                 setLoading(false);
                 return;
             }
@@ -78,6 +92,7 @@ export function useSessionProfile(): State {
             };
 
             setUser(normalizedUser);
+            cacheState = { ...cacheState, user: normalizedUser };
 
             // 2️⃣ Проверяем профиль
             const { data: prof, error: profErr } = await supabase
@@ -91,6 +106,7 @@ export function useSessionProfile(): State {
             if (profErr) {
                 setProfile(null);
                 setError(profErr.message);
+                cacheState = { ...cacheState, profile: null, error: profErr.message };
                 setLoading(false);
                 return;
             }
@@ -122,6 +138,7 @@ export function useSessionProfile(): State {
                 }
 
                 setProfile(inserted as CabinetProfile);
+                cacheState = { ...cacheState, profile: inserted as CabinetProfile, error: null };
                 setLoading(false);
                 return;
             }
@@ -141,13 +158,15 @@ export function useSessionProfile(): State {
             }
 
             // 4️⃣ Если профиль найден
-            setProfile({
+            const normalizedProfile: CabinetProfile = {
                 ...(prof as CabinetProfile),
                 email: u.email ?? null,
                 original_email: prof.original_email ?? u.email ?? null,
                 plan_status: (prof.plan_status as CabinetProfile["plan_status"]) ?? "free",
                 plan_expires_at: prof.plan_expires_at ?? null,
-            });
+            };
+            setProfile(normalizedProfile);
+            cacheState = { ...cacheState, profile: normalizedProfile, error: null };
             setLoading(false);
         })().finally(() => {
             inFlight.current = null;
