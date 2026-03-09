@@ -59,7 +59,7 @@ export default function RegisterCard() {
                 // если confirm email выключен — сессия будет сразу
                 const { data: s } = await supabase.auth.getSession();
                 if (s.session) {
-                    navigate("/cabinet", { replace: true });
+                    navigate("/", { replace: true });
                 } else {
                     setInfo("Проверьте почту: отправлена ссылка для подтверждения (если включено подтверждение email).");
                 }
@@ -69,7 +69,7 @@ export default function RegisterCard() {
                     setErr(error.message);
                     return;
                 }
-                navigate("/cabinet", { replace: true });
+                navigate("/", { replace: true });
             }
         } finally {
             setBusy(false);

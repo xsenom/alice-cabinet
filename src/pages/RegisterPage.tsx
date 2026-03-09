@@ -41,7 +41,7 @@ export default function RegisterPage() {
         // Если подтверждение email включено — сессия может не появиться сразу.
         // В любом случае ведём на логин или на onboarding.
         if (data.session) {
-            nav("/onboarding", { replace: true });
+            nav("/profile?onboarding=1", { replace: true });
         } else {
             setErr("Проверь почту и подтверди email, затем войди в кабинет.");
             // можно: nav("/login")
