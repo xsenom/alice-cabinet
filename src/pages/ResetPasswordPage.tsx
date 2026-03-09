@@ -37,8 +37,8 @@ export default function ResetPasswordPage() {
         const { error } = await supabase.auth.updateUser({ password: pwd });
         if (error) return setErr(error.message);
 
-        setOk("Пароль обновлён. Перенаправляю в кабинет…");
-        setTimeout(() => nav("/cabinet", { replace: true }), 700);
+        setOk("Пароль обновлён. Перенаправляю на главную…");
+        setTimeout(() => nav("/", { replace: true }), 700);
     }
 
     return (
