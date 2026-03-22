@@ -11,7 +11,7 @@ type Stats = {
 };
 
 type VideoSection = "Главная" | "Библиотека";
-type VideoGroup = "miniapp" | "voronka" | "bots" | "ai" | "prochee";
+type VideoAccess = "free" | "pro";
 
 type VideoSlot = {
     id: string;
@@ -21,21 +21,29 @@ type VideoSlot = {
     note: string;
 };
 
+type VideoGroupOption = {
+    value: string;
+    label: string;
+    path: string;
+};
+
 type CustomVideoDraft = {
     title: string;
-    group: VideoGroup;
+    group: string;
     slug: string;
     description: string;
+    access: VideoAccess | "";
 };
 
 type UploadedCustomVideo = CustomVideoDraft & {
+    access: VideoAccess;
     filePath: string;
     publicUrl: string;
 };
 
 const VIDEO_BUCKET = (import.meta.env.VITE_SUPABASE_VIDEOS_BUCKET as string | undefined)?.trim() || "videos";
 
-const VIDEO_GROUP_OPTIONS: Array<{ value: VideoGroup; label: string; path: string }> = [
+const DEFAULT_VIDEO_GROUP_OPTIONS: VideoGroupOption[] = [
     { value: "miniapp", label: "Миниапп", path: "miniapp" },
     { value: "voronka", label: "Воронка", path: "voronka" },
     { value: "bots", label: "Боты", path: "bots" },
@@ -104,9 +112,10 @@ const VIDEO_SLOTS: VideoSlot[] = [
 
 const INITIAL_CUSTOM_DRAFT: CustomVideoDraft = {
     title: "",
-    group: "miniapp",
+    group: DEFAULT_VIDEO_GROUP_OPTIONS[0].value,
     slug: "",
     description: "",
+    access: "",
 };
 
 export default function AdminPage() {
@@ -119,6 +128,8 @@ export default function AdminPage() {
     const [uploadNotice, setUploadNotice] = useState<string | null>(null);
     const [uploadedUrls, setUploadedUrls] = useState<Record<string, string>>({});
 
+    const [videoGroups, setVideoGroups] = useState<VideoGroupOption[]>(DEFAULT_VIDEO_GROUP_OPTIONS);
+    const [newGroupName, setNewGroupName] = useState("");
     const [customDraft, setCustomDraft] = useState<CustomVideoDraft>(INITIAL_CUSTOM_DRAFT);
     const [customFile, setCustomFile] = useState<File | null>(null);
     const [uploadedCustomVideos, setUploadedCustomVideos] = useState<UploadedCustomVideo[]>([]);
@@ -167,9 +178,11 @@ export default function AdminPage() {
     }, []);
 
     const activeGroup = useMemo(
-        () => VIDEO_GROUP_OPTIONS.find((option) => option.value === customDraft.group) ?? VIDEO_GROUP_OPTIONS[0],
-        [customDraft.group]
+        () => videoGroups.find((option) => option.value === customDraft.group) ?? videoGroups[0],
+        [customDraft.group, videoGroups]
     );
+
+    const customPreviewSlug = slugify(customDraft.slug || "example-video");
 
     const uploadToStorage = async (storageKey: string, file: File) => {
         const { error: storageError } = await supabase.storage.from(VIDEO_BUCKET).upload(storageKey, file, {
@@ -225,9 +238,51 @@ export default function AdminPage() {
         });
     };
 
+    const handleAddGroup = () => {
+        const safeValue = slugify(newGroupName);
+        const trimmedLabel = newGroupName.trim();
+
+        if (!trimmedLabel) {
+            setUploadError("Введите название новой группы.");
+            setUploadNotice(null);
+            return;
+        }
+
+        if (!safeValue) {
+            setUploadError("Название группы должно содержать латиницу или цифры, чтобы можно было создать путь.");
+            setUploadNotice(null);
+            return;
+        }
+
+        if (videoGroups.some((group) => group.value === safeValue || group.label.toLowerCase() === trimmedLabel.toLowerCase())) {
+            setUploadError("Такая группа уже существует.");
+            setUploadNotice(null);
+            return;
+        }
+
+        const nextGroup = { value: safeValue, label: trimmedLabel, path: safeValue };
+        setVideoGroups((current) => [...current, nextGroup]);
+        setCustomDraft((current) => ({ ...current, group: nextGroup.value }));
+        setNewGroupName("");
+        setUploadError(null);
+        setUploadNotice(`Группа «${trimmedLabel}» добавлена.`);
+    };
+
     const handleCustomUpload = async () => {
         if (!customDraft.title.trim()) {
             setUploadError("Укажите название ролика.");
+            setUploadNotice(null);
+            return;
+        }
+
+        if (!customDraft.group) {
+            setUploadError("Выберите группу для ролика.");
+            setUploadNotice(null);
+            return;
+        }
+
+        if (!customDraft.access) {
+            setUploadError("Обязательно выберите доступ: Pro или бесплатный.");
             setUploadNotice(null);
             return;
         }
@@ -257,6 +312,14 @@ export default function AdminPage() {
             return;
         }
 
+        if (!activeGroup) {
+            setUploadError("Не удалось определить группу для ролика.");
+            setUploadNotice(null);
+            return;
+        }
+
+        const access = customDraft.access as VideoAccess;
+
         setUploadingId("custom-video");
         setUploadError(null);
         setUploadNotice(null);
@@ -270,13 +333,16 @@ export default function AdminPage() {
                 {
                     ...customDraft,
                     slug: safeSlug,
+                    access,
                     filePath,
                     publicUrl,
                 },
                 ...current,
             ]);
-            setUploadNotice(`Новый ролик «${customDraft.title}» добавлен в группу «${activeGroup.label}».`);
-            setCustomDraft(INITIAL_CUSTOM_DRAFT);
+            setUploadNotice(
+                `Новый ролик «${customDraft.title}» добавлен в группу «${activeGroup.label}» с доступом «${getAccessLabel(access)}».`
+            );
+            setCustomDraft((current) => ({ ...INITIAL_CUSTOM_DRAFT, group: current.group }));
             setCustomFile(null);
         } catch (uploadStorageError) {
             const message = uploadStorageError instanceof Error ? uploadStorageError.message : "Не удалось загрузить видео.";
@@ -365,9 +431,7 @@ export default function AdminPage() {
                                                 </div>
                                             </div>
 
-                                            {publicUrl ? (
-                                                <UrlCard publicUrl={publicUrl} />
-                                            ) : null}
+                                            {publicUrl ? <UrlCard publicUrl={publicUrl} /> : null}
                                         </div>
                                     );
                                 })}
@@ -382,11 +446,11 @@ export default function AdminPage() {
                     <div>
                         <div className="text-xl font-semibold">Новый ролик для будущих материалов</div>
                         <div className="mt-1 text-sm text-white/70">
-                            Здесь можно заранее завести новый ролик: ввести название, выбрать группу и получить стабильный путь в storage.
+                            Здесь можно заранее завести новый ролик: ввести название, добавить новую группу при необходимости и обязательно выбрать тип доступа.
                         </div>
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70">
-                        Путь будет создан в формате <span className="font-mono text-white">custom/{activeGroup.path}/{slugify(customDraft.slug || "example-video")}.mp4</span>
+                        Путь будет создан в формате <span className="font-mono text-white">custom/{activeGroup?.path ?? "group"}/{customPreviewSlug}.mp4</span>
                     </div>
                 </div>
 
@@ -403,13 +467,25 @@ export default function AdminPage() {
                                 />
                             </Field>
 
+                            <Field label="Доступ">
+                                <select
+                                    value={customDraft.access}
+                                    onChange={(event) => handleCustomFieldChange("access", event.target.value)}
+                                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                                >
+                                    <option value="" className="bg-[#06110D]">Выберите доступ</option>
+                                    <option value="free" className="bg-[#06110D]">Бесплатный</option>
+                                    <option value="pro" className="bg-[#06110D]">PRO</option>
+                                </select>
+                            </Field>
+
                             <Field label="Группа">
                                 <select
                                     value={customDraft.group}
                                     onChange={(event) => handleCustomFieldChange("group", event.target.value)}
                                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                                 >
-                                    {VIDEO_GROUP_OPTIONS.map((option) => (
+                                    {videoGroups.map((option) => (
                                         <option key={option.value} value={option.value} className="bg-[#06110D]">
                                             {option.label}
                                         </option>
@@ -426,7 +502,26 @@ export default function AdminPage() {
                                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35"
                                 />
                             </Field>
+                        </div>
 
+                        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="mb-3 text-sm text-white/60">Добавить новую группу</div>
+                            <div className="flex flex-col gap-3 lg:flex-row">
+                                <input
+                                    type="text"
+                                    value={newGroupName}
+                                    onChange={(event) => setNewGroupName(event.target.value)}
+                                    placeholder="Например: Вебинары"
+                                    className="w-full rounded-2xl border border-white/10 bg-[rgba(6,17,13,0.65)] px-4 py-3 text-sm text-white outline-none placeholder:text-white/35"
+                                />
+                                <Button type="button" onClick={handleAddGroup} className="shrink-0">
+                                    Добавить группу
+                                </Button>
+                            </div>
+                            <div className="mt-2 text-xs text-white/45">Для storage будет использован slug на латинице, например `webinary` или `sales-course`.</div>
+                        </div>
+
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
                             <Field label="Видеофайл">
                                 <label className="flex min-h-[48px] cursor-pointer items-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white hover:bg-white/10">
                                     <input
@@ -437,6 +532,11 @@ export default function AdminPage() {
                                     />
                                     <span className="truncate">{customFile?.name ?? "Выбрать видео"}</span>
                                 </label>
+                            </Field>
+                            <Field label="Итоговый доступ">
+                                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
+                                    {customDraft.access ? getAccessLabel(customDraft.access) : "Не выбран"}
+                                </div>
                             </Field>
                         </div>
 
@@ -457,7 +557,7 @@ export default function AdminPage() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setCustomDraft(INITIAL_CUSTOM_DRAFT);
+                                    setCustomDraft((current) => ({ ...INITIAL_CUSTOM_DRAFT, group: current.group }));
                                     setCustomFile(null);
                                 }}
                                 className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-white/75 hover:bg-white/10"
@@ -472,12 +572,12 @@ export default function AdminPage() {
                         <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
                             <div className="text-xs text-white/45">Storage key</div>
                             <div className="mt-2 break-all font-mono text-emerald-200">
-                                custom/{activeGroup.path}/{slugify(customDraft.slug || "example-video")}.{getFileExtension(customFile?.name)}
+                                custom/{activeGroup?.path ?? "group"}/{customPreviewSlug}.{getFileExtension(customFile?.name)}
                             </div>
-                            <div className="mt-4 text-xs text-white/45">Для чего это нужно</div>
+                            <div className="mt-4 text-xs text-white/45">Параметры публикации</div>
                             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-white/65">
-                                <li>Можно загружать ролики, которых ещё нет в текущем интерфейсе.</li>
-                                <li>Группы помогают заранее разложить материалы по темам: миниапп, воронка, AI и т.д.</li>
+                                <li>Группу можно выбрать из списка или добавить новую прямо в админке.</li>
+                                <li>Для каждого нового ролика обязательно указывается доступ: бесплатный или PRO.</li>
                                 <li>После загрузки вы сразу получаете готовую публичную ссылку.</li>
                             </ul>
                         </div>
@@ -489,13 +589,16 @@ export default function AdminPage() {
                         <div className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-white/50">Недавно добавленные будущие ролики</div>
                         <div className="grid gap-3 xl:grid-cols-2">
                             {uploadedCustomVideos.map((video) => {
-                                const groupLabel = VIDEO_GROUP_OPTIONS.find((option) => option.value === video.group)?.label ?? video.group;
+                                const groupLabel = videoGroups.find((option) => option.value === video.group)?.label ?? video.group;
 
                                 return (
                                     <div key={video.filePath} className="rounded-2xl border border-white/10 bg-black/20 p-4">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <div className="text-base font-semibold text-white">{video.title}</div>
                                             <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/60">{groupLabel}</span>
+                                            <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
+                                                {getAccessLabel(video.access)}
+                                            </span>
                                         </div>
                                         {video.description ? <div className="mt-2 text-sm text-white/65">{video.description}</div> : null}
                                         <div className="mt-3 text-xs text-white/45">{video.filePath}</div>
@@ -571,4 +674,8 @@ function slugify(value: string) {
 function getFileExtension(filename?: string) {
     const rawExt = filename?.split(".").pop()?.toLowerCase() || "mp4";
     return rawExt.replace(/[^a-z0-9]/g, "") || "mp4";
+}
+
+function getAccessLabel(access: VideoAccess) {
+    return access === "pro" ? "PRO" : "Бесплатный";
 }
