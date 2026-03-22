@@ -15,3 +15,8 @@
 - `public/videos/miniapp-01.mp4`
 
 В продакшене это URL вида `/videos/<file>.mp4` с вашего сервера.
+
+## Admin-панель
+- В `/admin` появился экран загрузки роликов.
+- По умолчанию он отправляет файлы в Supabase Storage bucket `videos` (или в bucket из `VITE_SUPABASE_VIDEOS_BUCKET`).
+- Файлы загружаются с `upsert` в путь `public/<filename>`, поэтому можно перезаливать ролики под тем же именем.
