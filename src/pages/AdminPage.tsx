@@ -39,6 +39,8 @@ type HomeVideoSlot = {
     id: string;
     title: string;
     description: string;
+    videoLabel: string;
+    access: LessonAccess;
     filename: string;
     publicPath: string;
 };
@@ -59,6 +61,8 @@ const HOME_VIDEO_SLOTS: HomeVideoSlot[] = [
         id: "home-how-to-use",
         title: "Как пользоваться приложением",
         description: "Онбординг-ролик для новых пользователей на главной странице.",
+        videoLabel: "Как пользоваться Lesik",
+        access: "free",
         filename: "how-to-use-lesik.mp4",
         publicPath: "/videos/how-to-use-lesik.mp4",
     },
@@ -66,6 +70,8 @@ const HOME_VIDEO_SLOTS: HomeVideoSlot[] = [
         id: "home-who-needs",
         title: "Кому будет полезно",
         description: "Короткий ролик про сценарии, кому подходит продукт.",
+        videoLabel: "Кому будет полезно",
+        access: "free",
         filename: "who-needs-lesik.mp4",
         publicPath: "/videos/who-needs-lesik.mp4",
     },
@@ -73,6 +79,8 @@ const HOME_VIDEO_SLOTS: HomeVideoSlot[] = [
         id: "home-miniapp-pro",
         title: "Mini App в Telegram (PRO)",
         description: "Промо-видео для платного контента на главной странице.",
+        videoLabel: "Mini App в Telegram",
+        access: "pro",
         filename: "miniapp-pro.mp4",
         publicPath: "/videos/miniapp-pro.mp4",
     },
@@ -113,7 +121,9 @@ export default function AdminPage() {
     const [stats, setStats] = useState<Stats>({ total: 0, admins: 0, free: 0, paid1m: 0, paid3m: 0 });
 
     const [groups, setGroups] = useState<AdminGroup[]>(() => buildInitialGroups());
+    const [homeVideos, setHomeVideos] = useState<HomeVideoSlot[]>(HOME_VIDEO_SLOTS);
     const [homeVideoUrls, setHomeVideoUrls] = useState<Record<string, string>>({});
+    const [editingHomeId, setEditingHomeId] = useState<string | null>(null);
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
     const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
     const [newGroupTitle, setNewGroupTitle] = useState("");
@@ -188,6 +198,10 @@ export default function AdminPage() {
         } = supabase.storage.from(VIDEO_BUCKET).getPublicUrl(storageKey);
 
         return publicUrl;
+    };
+
+    const updateHomeVideo = (slotId: string, updater: (slot: HomeVideoSlot) => HomeVideoSlot) => {
+        setHomeVideos((current) => current.map((slot) => (slot.id === slotId ? updater(slot) : slot)));
     };
 
     const handleHomeVideoUpload = async (slot: HomeVideoSlot, file?: File) => {
@@ -330,12 +344,65 @@ export default function AdminPage() {
                 <div className="mt-1 text-sm text-white/70">Вернул отдельную панель для роликов на главной странице, чтобы можно было обновлять onboarding и промо-видео.</div>
 
                 <div className="mt-5 grid gap-3 xl:grid-cols-3">
-                    {HOME_VIDEO_SLOTS.map((slot) => {
+                    {homeVideos.map((slot) => {
                         const currentUrl = homeVideoUrls[slot.id] || slot.publicPath;
+                        const isEditingHome = editingHomeId === slot.id;
                         return (
                             <div key={slot.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                <div className="text-base font-semibold text-white">{slot.title}</div>
-                                <div className="mt-1 text-sm text-white/65">{slot.description}</div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1">
+                                        {isEditingHome ? (
+                                            <input
+                                                value={slot.title}
+                                                onChange={(event) => updateHomeVideo(slot.id, (current) => ({ ...current, title: event.target.value }))}
+                                                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base font-semibold text-white outline-none"
+                                            />
+                                        ) : (
+                                            <div className="text-base font-semibold text-white">{slot.title}</div>
+                                        )}
+                                    </div>
+                                    <Button type="button" onClick={() => setEditingHomeId(isEditingHome ? null : slot.id)}>
+                                        {isEditingHome ? "Сохранить" : "Редактировать"}
+                                    </Button>
+                                </div>
+                                <div className="mt-4 grid gap-4">
+                                    <Field label="Название ролика">
+                                        <input
+                                            value={slot.title}
+                                            onChange={(event) => updateHomeVideo(slot.id, (current) => ({ ...current, title: event.target.value }))}
+                                            disabled={!isEditingHome}
+                                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none disabled:opacity-60"
+                                        />
+                                    </Field>
+                                    <Field label="Короткое название / label">
+                                        <input
+                                            value={slot.videoLabel}
+                                            onChange={(event) => updateHomeVideo(slot.id, (current) => ({ ...current, videoLabel: event.target.value }))}
+                                            disabled={!isEditingHome}
+                                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none disabled:opacity-60"
+                                        />
+                                    </Field>
+                                    <Field label="Описание">
+                                        <textarea
+                                            value={slot.description}
+                                            onChange={(event) => updateHomeVideo(slot.id, (current) => ({ ...current, description: event.target.value }))}
+                                            disabled={!isEditingHome}
+                                            rows={3}
+                                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none disabled:opacity-60"
+                                        />
+                                    </Field>
+                                    <Field label="Доступ">
+                                        <select
+                                            value={slot.access}
+                                            onChange={(event) => updateHomeVideo(slot.id, (current) => ({ ...current, access: event.target.value as LessonAccess }))}
+                                            disabled={!isEditingHome}
+                                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none disabled:opacity-60"
+                                        >
+                                            <option value="free" className="bg-[#06110D]">Бесплатный</option>
+                                            <option value="pro" className="bg-[#06110D]">PRO</option>
+                                        </select>
+                                    </Field>
+                                </div>
                                 <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60">
                                     <div className="font-mono text-white">{slot.filename}</div>
                                     <div className="mt-1 break-all">{currentUrl}</div>
