@@ -35,6 +35,14 @@ type AdminGroup = {
     lessons: AdminLesson[];
 };
 
+type HomeVideoSlot = {
+    id: string;
+    title: string;
+    description: string;
+    filename: string;
+    publicPath: string;
+};
+
 const VIDEO_BUCKET = (import.meta.env.VITE_SUPABASE_VIDEOS_BUCKET as string | undefined)?.trim() || "videos";
 
 const DEFAULT_COMMENT_MAP: Record<string, LessonComment[]> = {
@@ -45,6 +53,30 @@ const DEFAULT_COMMENT_MAP: Record<string, LessonComment[]> = {
     f02: [{ lessonId: "f02", text: "Очень полезны тайм-коды, пересматриваю отдельные куски.", ts: "сегодня, 09:15" }],
     b01: [{ lessonId: "b01", text: "Добавьте шаблон сообщений для welcome-цепочки.", ts: "сегодня, 11:02" }],
 };
+
+const HOME_VIDEO_SLOTS: HomeVideoSlot[] = [
+    {
+        id: "home-how-to-use",
+        title: "Как пользоваться приложением",
+        description: "Онбординг-ролик для новых пользователей на главной странице.",
+        filename: "how-to-use-lesik.mp4",
+        publicPath: "/videos/how-to-use-lesik.mp4",
+    },
+    {
+        id: "home-who-needs",
+        title: "Кому будет полезно",
+        description: "Короткий ролик про сценарии, кому подходит продукт.",
+        filename: "who-needs-lesik.mp4",
+        publicPath: "/videos/who-needs-lesik.mp4",
+    },
+    {
+        id: "home-miniapp-pro",
+        title: "Mini App в Telegram (PRO)",
+        description: "Промо-видео для платного контента на главной странице.",
+        filename: "miniapp-pro.mp4",
+        publicPath: "/videos/miniapp-pro.mp4",
+    },
+];
 
 const DEFAULT_RATINGS: Record<string, { averageRating: number; ratingsCount: number }> = {
     f01: { averageRating: 4.8, ratingsCount: 32 },
@@ -81,6 +113,7 @@ export default function AdminPage() {
     const [stats, setStats] = useState<Stats>({ total: 0, admins: 0, free: 0, paid1m: 0, paid3m: 0 });
 
     const [groups, setGroups] = useState<AdminGroup[]>(() => buildInitialGroups());
+    const [homeVideoUrls, setHomeVideoUrls] = useState<Record<string, string>>({});
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
     const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
     const [newGroupTitle, setNewGroupTitle] = useState("");
@@ -155,6 +188,29 @@ export default function AdminPage() {
         } = supabase.storage.from(VIDEO_BUCKET).getPublicUrl(storageKey);
 
         return publicUrl;
+    };
+
+    const handleHomeVideoUpload = async (slot: HomeVideoSlot, file?: File) => {
+        if (!file) return;
+        if (!file.type.startsWith("video/")) {
+            setUploadError("Можно загружать только видеофайлы.");
+            setUploadNotice(null);
+            return;
+        }
+
+        setUploadingId(slot.id);
+        setUploadError(null);
+        setUploadNotice(null);
+
+        try {
+            const publicUrl = await uploadToStorage(`public/${slot.filename}`, file);
+            setHomeVideoUrls((current) => ({ ...current, [slot.id]: publicUrl }));
+            setUploadNotice(`Ролик «${slot.title}» обновлён.`);
+        } catch (uploadStorageError) {
+            setUploadError(uploadStorageError instanceof Error ? uploadStorageError.message : "Не удалось загрузить видео.");
+        } finally {
+            setUploadingId(null);
+        }
     };
 
     const handleVideoUpload = async (groupId: string, lessonId: string, file?: File) => {
@@ -267,6 +323,39 @@ export default function AdminPage() {
                         <Card title="Комментариев к урокам" value={totalComments} />
                     </div>
                 ) : null}
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-[rgba(6,17,13,0.72)] p-5 backdrop-blur-xl">
+                <div className="text-xl font-semibold">Главная / Как пользоваться приложением</div>
+                <div className="mt-1 text-sm text-white/70">Вернул отдельную панель для роликов на главной странице, чтобы можно было обновлять onboarding и промо-видео.</div>
+
+                <div className="mt-5 grid gap-3 xl:grid-cols-3">
+                    {HOME_VIDEO_SLOTS.map((slot) => {
+                        const currentUrl = homeVideoUrls[slot.id] || slot.publicPath;
+                        return (
+                            <div key={slot.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                                <div className="text-base font-semibold text-white">{slot.title}</div>
+                                <div className="mt-1 text-sm text-white/65">{slot.description}</div>
+                                <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60">
+                                    <div className="font-mono text-white">{slot.filename}</div>
+                                    <div className="mt-1 break-all">{currentUrl}</div>
+                                </div>
+                                <label className="mt-4 inline-flex cursor-pointer items-center rounded-2xl border border-white/10 px-4 py-3 text-sm text-white hover:bg-white/10">
+                                    <input
+                                        type="file"
+                                        accept="video/*"
+                                        className="hidden"
+                                        onChange={(event) => {
+                                            void handleHomeVideoUpload(slot, event.target.files?.[0]);
+                                            event.currentTarget.value = "";
+                                        }}
+                                    />
+                                    <span>{uploadingId === slot.id ? "Загрузка..." : "Загрузить видео"}</span>
+                                </label>
+                            </div>
+                        );
+                    })}
+                </div>
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-[rgba(6,17,13,0.72)] p-5 backdrop-blur-xl">
