@@ -50,6 +50,11 @@ type AdminUser = {
     created_at?: string;
 };
 
+type UsersLoadResult = {
+    data: AdminUser[];
+    missingPurchaseColumns: boolean;
+};
+
 type HomeVideoSlot = {
     id: string;
     title: string;
@@ -101,6 +106,61 @@ const HOME_VIDEO_SLOTS: HomeVideoSlot[] = [
     },
 ];
 
+const USER_BASE_SELECT = "id,email,original_email,full_name,profession,avatar_url,status_admin,plan_status,plan_expires_at,created_at";
+const USER_EXTENDED_SELECT = `${USER_BASE_SELECT},first_purchase_at,purchases_count`;
+
+function isMissingPurchaseColumnsError(message: string) {
+    const normalized = message.toLowerCase();
+    return (
+        normalized.includes("first_purchase_at")
+        || normalized.includes("purchases_count")
+        || normalized.includes("could not find the 'first_purchase_at' column")
+        || normalized.includes("could not find the 'purchases_count' column")
+    );
+}
+
+function normalizeAdminUser(user: Partial<AdminUser>): AdminUser {
+    return {
+        id: user.id ?? "",
+        email: user.email ?? null,
+        original_email: user.original_email ?? null,
+        full_name: user.full_name ?? null,
+        profession: user.profession ?? null,
+        avatar_url: user.avatar_url ?? null,
+        status_admin: !!user.status_admin,
+        plan_status: user.plan_status ?? "free",
+        plan_expires_at: user.plan_expires_at ?? null,
+        first_purchase_at: user.first_purchase_at ?? null,
+        purchases_count: user.purchases_count ?? 0,
+        created_at: user.created_at,
+    };
+}
+
+async function loadAdminUsers(): Promise<UsersLoadResult> {
+    const extendedResponse = await supabase.from("profiles_les").select(USER_EXTENDED_SELECT).order("created_at", { ascending: false });
+
+    if (!extendedResponse.error) {
+        return {
+            data: ((extendedResponse.data as Partial<AdminUser>[] | null) ?? []).map(normalizeAdminUser),
+            missingPurchaseColumns: false,
+        };
+    }
+
+    if (!isMissingPurchaseColumnsError(extendedResponse.error.message)) {
+        throw extendedResponse.error;
+    }
+
+    const fallbackResponse = await supabase.from("profiles_les").select(USER_BASE_SELECT).order("created_at", { ascending: false });
+    if (fallbackResponse.error) {
+        throw fallbackResponse.error;
+    }
+
+    return {
+        data: ((fallbackResponse.data as Partial<AdminUser>[] | null) ?? []).map(normalizeAdminUser),
+        missingPurchaseColumns: true,
+    };
+}
+
 const DEFAULT_RATINGS: Record<string, { averageRating: number; ratingsCount: number }> = {
     f01: { averageRating: 4.8, ratingsCount: 32 },
     f02: { averageRating: 4.6, ratingsCount: 18 },
@@ -110,11 +170,11 @@ const DEFAULT_RATINGS: Record<string, { averageRating: number; ratingsCount: num
 };
 
 function buildInitialGroups(): AdminGroup[] {
-    return (Object.entries(DEMO) as Array<[TopicKey, typeof DEMO[TopicKey]]>).map(([topic, lessons]) => ({
-        id: slugify(topic),
+    return (Object.entries(DEMO) as Array<[TopicKey, typeof DEMO[TopicKey]]>).map(([topic, lessons], groupIndex) => ({
+        id: slugify(topic) || `group-${groupIndex + 1}`,
         title: topic,
-        lessons: lessons.map((lesson) => ({
-            id: lesson.id,
+        lessons: lessons.map((lesson, lessonIndex) => ({
+            id: lesson.id || `lesson-${groupIndex + 1}-${lessonIndex + 1}`,
             title: lesson.title,
             goal: lesson.goal,
             access: lesson.premium ? "pro" : "free",
@@ -141,6 +201,7 @@ export default function AdminPage() {
     const [homeVideos, setHomeVideos] = useState<HomeVideoSlot[]>(HOME_VIDEO_SLOTS);
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
     const [savingUserId, setSavingUserId] = useState<string | null>(null);
+    const [missingPurchaseColumns, setMissingPurchaseColumns] = useState(false);
     const [homeVideoUrls, setHomeVideoUrls] = useState<Record<string, string>>({});
     const [editingHomeId, setEditingHomeId] = useState<string | null>(null);
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -156,34 +217,37 @@ export default function AdminPage() {
             setLoading(true);
             setError(null);
 
-            const [all, admins, free, paid1m, paid3m, usersResponse] = await Promise.all([
-                supabase.from("profiles_les").select("id", { head: true, count: "exact" }),
-                supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("status_admin", true),
-                supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("plan_status", "free"),
-                supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("plan_status", "paid_1m"),
-                supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("plan_status", "paid_3m"),
-                supabase
-                    .from("profiles_les")
-                    .select("id,email,original_email,full_name,profession,avatar_url,status_admin,plan_status,plan_expires_at,first_purchase_at,purchases_count,created_at")
-                    .order("created_at", { ascending: false }),
-            ]);
+            try {
+                const [all, admins, free, paid1m, paid3m, usersResponse] = await Promise.all([
+                    supabase.from("profiles_les").select("id", { head: true, count: "exact" }),
+                    supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("status_admin", true),
+                    supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("plan_status", "free"),
+                    supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("plan_status", "paid_1m"),
+                    supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("plan_status", "paid_3m"),
+                    loadAdminUsers(),
+                ]);
 
-            const firstError = all.error || admins.error || free.error || paid1m.error || paid3m.error || usersResponse.error;
-            if (firstError) {
-                setError(firstError.message);
+                const firstError = all.error || admins.error || free.error || paid1m.error || paid3m.error;
+                if (firstError) {
+                    setError(firstError.message);
+                    setLoading(false);
+                    return;
+                }
+
+                setStats({
+                    total: all.count ?? 0,
+                    admins: admins.count ?? 0,
+                    free: free.count ?? 0,
+                    paid1m: paid1m.count ?? 0,
+                    paid3m: paid3m.count ?? 0,
+                });
+                setUsers(usersResponse.data);
+                setMissingPurchaseColumns(usersResponse.missingPurchaseColumns);
+            } catch (loadError) {
+                setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить пользователей.");
+            } finally {
                 setLoading(false);
-                return;
             }
-
-            setStats({
-                total: all.count ?? 0,
-                admins: admins.count ?? 0,
-                free: free.count ?? 0,
-                paid1m: paid1m.count ?? 0,
-                paid3m: paid3m.count ?? 0,
-            });
-            setUsers((usersResponse.data as AdminUser[] | null) ?? []);
-            setLoading(false);
         };
 
         void load();
@@ -311,21 +375,24 @@ export default function AdminPage() {
         setUploadError(null);
         setUploadNotice(null);
 
-        const { error: updateError } = await supabase
-            .from("profiles_les")
-            .update({
-                email: selectedUser.email,
-                original_email: selectedUser.original_email,
-                full_name: selectedUser.full_name,
-                profession: selectedUser.profession,
-                avatar_url: selectedUser.avatar_url ?? null,
-                status_admin: selectedUser.status_admin,
-                plan_status: selectedUser.plan_status,
-                plan_expires_at: selectedUser.plan_expires_at || null,
-                first_purchase_at: selectedUser.first_purchase_at || null,
-                purchases_count: selectedUser.purchases_count,
-            })
-            .eq("id", selectedUser.id);
+        const payload = {
+            email: selectedUser.email,
+            original_email: selectedUser.original_email,
+            full_name: selectedUser.full_name,
+            profession: selectedUser.profession,
+            avatar_url: selectedUser.avatar_url ?? null,
+            status_admin: selectedUser.status_admin,
+            plan_status: selectedUser.plan_status,
+            plan_expires_at: selectedUser.plan_expires_at || null,
+            ...(missingPurchaseColumns
+                ? {}
+                : {
+                    first_purchase_at: selectedUser.first_purchase_at || null,
+                    purchases_count: selectedUser.purchases_count,
+                }),
+        };
+
+        const { error: updateError } = await supabase.from("profiles_les").update(payload).eq("id", selectedUser.id);
 
         if (updateError) {
             setUploadError(updateError.message);
@@ -665,9 +732,9 @@ export default function AdminPage() {
                                                         </div>
                                                         <div className="mt-3 space-y-2">
                                                             {lesson.pdfs.length ? (
-                                                                lesson.pdfs.map((pdf) => (
-                                                                    <div key={`${lesson.id}-${pdf.name}`} className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-white/80">
-                                                                        {pdf.name}
+                                                                lesson.pdfs.map((pdf, pdfIndex) => (
+                                                                    <div key={`${lesson.id}-${pdf.name || `pdf-${pdfIndex + 1}`}`} className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-white/80">
+                                                                        {pdf.name || `PDF ${pdfIndex + 1}`}
                                                                     </div>
                                                                 ))
                                                             ) : (
@@ -723,6 +790,12 @@ export default function AdminPage() {
                             Если здесь отображается только ваш профиль, значит в Supabase ещё действует старая RLS-политика `profiles_les_select_own`.
                             Примените обновлённый SQL из `SUPABASE_SETUP.md`, чтобы администратор видел всех пользователей.
                         </div>
+                        {missingPurchaseColumns ? (
+                            <div className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                                В базе ещё нет колонок <code>first_purchase_at</code> и/или <code>purchases_count</code>.
+                                Таблица загружена в режиме совместимости: просмотр работает, но для редактирования этих полей нужно применить SQL из <code>SUPABASE_SETUP.md</code>.
+                            </div>
+                        ) : null}
                         <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
                             <div className="overflow-x-auto">
                                 <table className="min-w-full text-left text-sm text-white/80">
@@ -821,10 +894,10 @@ export default function AdminPage() {
                                 </select>
                             </Field>
                             <Field label="Первая покупка">
-                                <input type="datetime-local" value={toDateTimeLocal(selectedUser.first_purchase_at)} onChange={(event) => setSelectedUser((current) => current ? { ...current, first_purchase_at: fromDateTimeLocal(event.target.value) } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />
+                                <input type="datetime-local" value={toDateTimeLocal(selectedUser.first_purchase_at)} onChange={(event) => setSelectedUser((current) => current ? { ...current, first_purchase_at: fromDateTimeLocal(event.target.value) } : current)} disabled={missingPurchaseColumns} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-50" />
                             </Field>
                             <Field label="Количество покупок">
-                                <input type="number" min={0} value={selectedUser.purchases_count} onChange={(event) => setSelectedUser((current) => current ? { ...current, purchases_count: Number(event.target.value) || 0 } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />
+                                <input type="number" min={0} value={selectedUser.purchases_count} onChange={(event) => setSelectedUser((current) => current ? { ...current, purchases_count: Number(event.target.value) || 0 } : current)} disabled={missingPurchaseColumns} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-50" />
                             </Field>
                             <Field label="Доступ до">
                                 <input type="datetime-local" value={toDateTimeLocal(selectedUser.plan_expires_at)} onChange={(event) => setSelectedUser((current) => current ? { ...current, plan_expires_at: fromDateTimeLocal(event.target.value) } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />
@@ -836,6 +909,12 @@ export default function AdminPage() {
                                 </label>
                             </Field>
                         </div>
+
+                        {missingPurchaseColumns ? (
+                            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                                Поля покупки временно доступны только для чтения, пока в Supabase не добавлены нужные колонки.
+                            </div>
+                        ) : null}
 
                         <div className="mt-5 flex flex-wrap justify-end gap-3">
                             <Button type="button" onClick={() => setSelectedUser(null)}>Отмена</Button>
