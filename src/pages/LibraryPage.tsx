@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { TopicKey } from "../lib/library/types";
-import { DEMO } from "../lib/library/demo";
+import { buildLibraryLessonsMap, loadLibraryContentSettings } from "../lib/adminLibrary";
 import { TOKENS } from "../lib/library/tokens";
 import { useSessionProfile } from "../hooks/useSessionProfile";
 
@@ -26,19 +26,20 @@ export default function LibraryPage() {
         new Date(profile.plan_expires_at).getTime() > Date.now() &&
         profile?.plan_status !== "free";
 
-    const lessons = useMemo(() => DEMO[topic] ?? [], [topic]);
+    const libraryContent = useMemo(() => buildLibraryLessonsMap(loadLibraryContentSettings()), []);
+    const lessons = useMemo(() => libraryContent[topic] ?? [], [libraryContent, topic]);
 
     const opened = useMemo(() => {
         if (!openedLessonId) return null;
-        return (DEMO[topic] ?? []).find((l) => l.id === openedLessonId) ?? null;
-    }, [topic, openedLessonId]);
+        return (libraryContent[topic] ?? []).find((l) => l.id === openedLessonId) ?? null;
+    }, [libraryContent, topic, openedLessonId]);
 
     useEffect(() => {
         const openId = new URLSearchParams(location.search).get("open");
         if (!openId) return;
 
         for (const t of TOPICS) {
-            const found = (DEMO[t] ?? []).find((l) => l.id === openId);
+            const found = (libraryContent[t] ?? []).find((l) => l.id === openId);
             if (found) {
                 if (found.premium && !hasPaid) return;
                 setTopic(t);
@@ -46,7 +47,7 @@ export default function LibraryPage() {
                 return;
             }
         }
-    }, [location.search, hasPaid]);
+    }, [location.search, hasPaid, libraryContent]);
 
     return (
         <div
