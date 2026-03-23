@@ -746,7 +746,7 @@ export default function AdminPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <div className="text-xl font-semibold">Пользователи</div>
-                        <div className="mt-1 text-sm text-white/70">Кнопка открывает список всех пользователей со статусами: бесплатный, платный, админ и сроком доступа.</div>
+
                     </div>
                     <Button type="button" onClick={() => setUsersOpen((current) => !current)}>
                         {usersOpen ? "Скрыть пользователей" : "Пользователи"}
@@ -755,10 +755,7 @@ export default function AdminPage() {
 
                 {usersOpen ? (
                     <>
-                        <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                            Если здесь отображается только ваш профиль, значит в Supabase ещё действует старая RLS-политика `profiles_les_select_own`.
-                            Примените обновлённый SQL из `SUPABASE_SETUP.md`, чтобы администратор видел всех пользователей.
-                        </div>
+
                         {missingPurchaseColumns ? (
                             <div className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
                                 В базе ещё нет колонок <code>first_purchase_at</code> и/или <code>purchases_count</code>.

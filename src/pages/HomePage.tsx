@@ -1,13 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import { useNavigate } from "react-router-dom";
 import HScroll from "../components/ui/HScroll";
 import { useSessionProfile } from "../hooks/useSessionProfile";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { buildHomePageVideos, type HomePageVideo, loadHomeVideoSettings } from "../lib/homeVideos";
 
-type VideoItem = HomePageVideo;
+type VideoItem = { id: string; title: string; hint: string; free: boolean; src: string };
 
 function VideoCard({
     title,
@@ -90,7 +89,7 @@ function VideoPlayerModal({
                     preload="metadata"
                     src={video.src}
                 />
-                <div className="mt-2 text-xs text-white/50">Источник: {video.src}</div>
+
             </div>
         </div>
     );
@@ -99,7 +98,6 @@ function VideoPlayerModal({
 export default function HomePage() {
     const isDesktop = useMediaQuery("(min-width: 1024px)");
     const [activeVideo, setActiveVideo] = useState<VideoItem | null>(null);
-    const [videos, setVideos] = useState<VideoItem[]>(() => buildHomePageVideos(loadHomeVideoSettings()));
 
     const stories = useMemo(
         () => [
@@ -117,14 +115,14 @@ export default function HomePage() {
     const name = profile?.full_name?.trim() || "друг";
 
     const nav = useNavigate();
-
-    useEffect(() => {
-        const syncVideos = () => setVideos(buildHomePageVideos(loadHomeVideoSettings()));
-
-        syncVideos();
-        window.addEventListener("storage", syncVideos);
-        return () => window.removeEventListener("storage", syncVideos);
-    }, []);
+    const videos = useMemo<VideoItem[]>(
+        () => [
+            { id: "v1", title: "Как пользоваться Lesik", hint: "60 секунд: трафик → бот → воронка → оплата", free: true, src: "/videos/how-to-use-lesik.mp4" },
+            { id: "v2", title: "Кому будет полезно", hint: "5 кейсов: эксперты, школы, мастера, сервисы", free: true, src: "/videos/who-needs-lesik.mp4" },
+            { id: "v3", title: "Mini App в Telegram", hint: "Каталог / квиз / кабинет / оплата — быстро", free: false, src: "/videos/miniapp-pro.mp4" },
+        ],
+        []
+    );
 
     const hasPaid =
         !!profile?.plan_expires_at &&

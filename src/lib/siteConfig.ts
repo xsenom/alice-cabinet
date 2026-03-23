@@ -7,7 +7,7 @@ export type FooterLink = {
 };
 
 export const SITE_FOOTER = {
-    caption: "Контакты и подписи футтера редактируются в этом файле.",
+
     legalText: `© ${new Date().getFullYear()} ${APP_NAME}. Все права защищены.`,
     links: [] as FooterLink[],
 };
