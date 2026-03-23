@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase/client";
-import { DEMO } from "../lib/library/demo";
-import { loadHomeVideoSettings, saveHomeVideoSettings, type HomeVideoSlot, type LessonAccess } from "../lib/homeVideos";
-import type { LessonComment, LessonPdf, TopicKey } from "../lib/library/types";
+import { loadHomeVideoSettings, saveHomeVideoSettings, type HomeVideoSlot } from "../lib/homeVideos";
+import { loadLibraryContentSettings, saveLibraryContentSettings, type AdminGroup, type AdminLesson, type LessonAccess } from "../lib/adminLibrary";
 
 type Stats = {
     total: number;
@@ -11,27 +10,6 @@ type Stats = {
     free: number;
     paid1m: number;
     paid3m: number;
-};
-
-type AdminLesson = {
-    id: string;
-    title: string;
-    goal: string;
-    access: LessonAccess;
-    videoLabel: string;
-    videoUrl: string;
-    timecodes: string;
-    videoDescription: string;
-    pdfs: LessonPdf[];
-    comments: LessonComment[];
-    averageRating: number;
-    ratingsCount: number;
-};
-
-type AdminGroup = {
-    id: string;
-    title: string;
-    lessons: AdminLesson[];
 };
 
 type AdminUser = {
@@ -55,15 +33,6 @@ type UsersLoadResult = {
 };
 
 const VIDEO_BUCKET = (import.meta.env.VITE_SUPABASE_VIDEOS_BUCKET as string | undefined)?.trim() || "videos";
-
-const DEFAULT_COMMENT_MAP: Record<string, LessonComment[]> = {
-    f01: [
-        { lessonId: "f01", text: "Супер! Наконец-то стало понятно, как выстроить линейку.", ts: "сегодня, 12:40" },
-        { lessonId: "f01", text: "Хочется ещё пример по прогреву через сторис.", ts: "вчера, 18:10" },
-    ],
-    f02: [{ lessonId: "f02", text: "Очень полезны тайм-коды, пересматриваю отдельные куски.", ts: "сегодня, 09:15" }],
-    b01: [{ lessonId: "b01", text: "Добавьте шаблон сообщений для welcome-цепочки.", ts: "сегодня, 11:02" }],
-};
 
 const USER_BASE_SELECT = "id,email,original_email,full_name,profession,avatar_url,status_admin,plan_status,plan_expires_at,created_at";
 const USER_EXTENDED_SELECT = `${USER_BASE_SELECT},first_purchase_at,purchases_count`;
@@ -120,41 +89,12 @@ async function loadAdminUsers(): Promise<UsersLoadResult> {
     };
 }
 
-const DEFAULT_RATINGS: Record<string, { averageRating: number; ratingsCount: number }> = {
-    f01: { averageRating: 4.8, ratingsCount: 32 },
-    f02: { averageRating: 4.6, ratingsCount: 18 },
-    b01: { averageRating: 4.9, ratingsCount: 14 },
-    ai01: { averageRating: 4.7, ratingsCount: 11 },
-    m01: { averageRating: 4.5, ratingsCount: 9 },
-};
-
-function buildInitialGroups(): AdminGroup[] {
-    return (Object.entries(DEMO) as Array<[TopicKey, typeof DEMO[TopicKey]]>).map(([topic, lessons], groupIndex) => ({
-        id: slugify(topic) || `group-${groupIndex + 1}`,
-        title: topic,
-        lessons: lessons.map((lesson, lessonIndex) => ({
-            id: lesson.id || `lesson-${groupIndex + 1}-${lessonIndex + 1}`,
-            title: lesson.title,
-            goal: lesson.goal,
-            access: lesson.premium ? "pro" : "free",
-            videoLabel: lesson.video?.label ?? lesson.title,
-            videoUrl: lesson.video?.url ?? "",
-            timecodes: "00:00 — Вступление\n03:40 — Ключевая мысль\n12:15 — Практический пример",
-            videoDescription: lesson.goal,
-            pdfs: lesson.pdfs ?? [],
-            comments: DEFAULT_COMMENT_MAP[lesson.id] ?? [],
-            averageRating: DEFAULT_RATINGS[lesson.id]?.averageRating ?? 0,
-            ratingsCount: DEFAULT_RATINGS[lesson.id]?.ratingsCount ?? 0,
-        })),
-    }));
-}
-
 export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [stats, setStats] = useState<Stats>({ total: 0, admins: 0, free: 0, paid1m: 0, paid3m: 0 });
 
-    const [groups, setGroups] = useState<AdminGroup[]>(() => buildInitialGroups());
+    const [groups, setGroups] = useState<AdminGroup[]>(() => loadLibraryContentSettings());
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [usersOpen, setUsersOpen] = useState(false);
     const [{ slots: homeVideos, urls: homeVideoUrls }, setHomeVideoState] = useState(() => loadHomeVideoSettings());
@@ -174,6 +114,10 @@ export default function AdminPage() {
     useEffect(() => {
         saveHomeVideoSettings({ slots: homeVideos, urls: homeVideoUrls });
     }, [homeVideos, homeVideoUrls]);
+
+    useEffect(() => {
+        saveLibraryContentSettings(groups);
+    }, [groups]);
 
     useEffect(() => {
         const load = async () => {
