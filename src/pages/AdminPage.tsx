@@ -361,9 +361,11 @@ export default function AdminPage() {
                                             <div className="text-base font-semibold text-white">{slot.title}</div>
                                         )}
                                     </div>
-                                    <Button type="button" onClick={() => setEditingHomeId(isEditingHome ? null : slot.id)}>
-                                        {isEditingHome ? "Сохранить" : "Редактировать"}
-                                    </Button>
+                                    <IconToggleButton
+                                        active={isEditingHome}
+                                        onClick={() => setEditingHomeId(isEditingHome ? null : slot.id)}
+                                        label={isEditingHome ? "Сохранить изменения ролика" : "Редактировать ролик"}
+                                    />
                                 </div>
                                 <div className="mt-4 grid gap-4">
                                     <Field label="Название ролика">
@@ -467,9 +469,11 @@ export default function AdminPage() {
                                         <div className="mt-1 text-sm text-white/55">Уроков: {group.lessons.length}</div>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
-                                        <Button type="button" onClick={() => setEditingGroupId(isEditingGroup ? null : group.id)}>
-                                            {isEditingGroup ? "Сохранить блок" : "Редактировать блок"}
-                                        </Button>
+                                        <IconToggleButton
+                                            active={isEditingGroup}
+                                            onClick={() => setEditingGroupId(isEditingGroup ? null : group.id)}
+                                            label={isEditingGroup ? "Сохранить блок" : "Редактировать блок"}
+                                        />
                                         <Button type="button" onClick={() => addLesson(group.id)}>
                                             Добавить урок
                                         </Button>
@@ -496,9 +500,11 @@ export default function AdminPage() {
                                                         )}
                                                     </div>
                                                     <div className="flex flex-wrap gap-2">
-                                                        <Button type="button" onClick={() => setEditingLessonId(isEditingLesson ? null : lesson.id)}>
-                                                            {isEditingLesson ? "Сохранить урок" : "Редактировать урок"}
-                                                        </Button>
+                                                        <IconToggleButton
+                                                            active={isEditingLesson}
+                                                            onClick={() => setEditingLessonId(isEditingLesson ? null : lesson.id)}
+                                                            label={isEditingLesson ? "Сохранить урок" : "Редактировать урок"}
+                                                        />
                                                     </div>
                                                 </div>
 
@@ -641,6 +647,37 @@ export default function AdminPage() {
                 </div>
             </section>
         </div>
+    );
+}
+
+function IconToggleButton({
+    active,
+    onClick,
+    label,
+}: {
+    active: boolean;
+    onClick: () => void;
+    label: string;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={label}
+            title={label}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white transition hover:bg-white/10"
+        >
+            {active ? (
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6 9 17l-5-5" />
+                </svg>
+            ) : (
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m12 20 9-9-3-3-9 9-1 4 4-1Z" />
+                    <path d="M16 5l3 3" />
+                </svg>
+            )}
+        </button>
     );
 }
 
