@@ -35,6 +35,18 @@ type AdminGroup = {
     lessons: AdminLesson[];
 };
 
+type AdminUser = {
+    id: string;
+    email: string | null;
+    original_email: string | null;
+    full_name: string | null;
+    profession: string | null;
+    status_admin: boolean;
+    plan_status: "free" | "paid_1m" | "paid_3m";
+    plan_expires_at: string | null;
+    created_at?: string;
+};
+
 type HomeVideoSlot = {
     id: string;
     title: string;
@@ -121,6 +133,8 @@ export default function AdminPage() {
     const [stats, setStats] = useState<Stats>({ total: 0, admins: 0, free: 0, paid1m: 0, paid3m: 0 });
 
     const [groups, setGroups] = useState<AdminGroup[]>(() => buildInitialGroups());
+    const [users, setUsers] = useState<AdminUser[]>([]);
+    const [usersOpen, setUsersOpen] = useState(false);
     const [homeVideos, setHomeVideos] = useState<HomeVideoSlot[]>(HOME_VIDEO_SLOTS);
     const [homeVideoUrls, setHomeVideoUrls] = useState<Record<string, string>>({});
     const [editingHomeId, setEditingHomeId] = useState<string | null>(null);
@@ -137,15 +151,19 @@ export default function AdminPage() {
             setLoading(true);
             setError(null);
 
-            const [all, admins, free, paid1m, paid3m] = await Promise.all([
+            const [all, admins, free, paid1m, paid3m, usersResponse] = await Promise.all([
                 supabase.from("profiles_les").select("id", { head: true, count: "exact" }),
                 supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("status_admin", true),
                 supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("plan_status", "free"),
                 supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("plan_status", "paid_1m"),
                 supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("plan_status", "paid_3m"),
+                supabase
+                    .from("profiles_les")
+                    .select("id,email,original_email,full_name,profession,status_admin,plan_status,plan_expires_at,created_at")
+                    .order("created_at", { ascending: false }),
             ]);
 
-            const firstError = all.error || admins.error || free.error || paid1m.error || paid3m.error;
+            const firstError = all.error || admins.error || free.error || paid1m.error || paid3m.error || usersResponse.error;
             if (firstError) {
                 setError(firstError.message);
                 setLoading(false);
@@ -159,6 +177,7 @@ export default function AdminPage() {
                 paid1m: paid1m.count ?? 0,
                 paid3m: paid3m.count ?? 0,
             });
+            setUsers((usersResponse.data as AdminUser[] | null) ?? []);
             setLoading(false);
         };
 
@@ -646,6 +665,68 @@ export default function AdminPage() {
                     })}
                 </div>
             </section>
+            <section className="rounded-3xl border border-white/10 bg-[rgba(6,17,13,0.72)] p-5 backdrop-blur-xl">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div className="text-xl font-semibold">Пользователи</div>
+                        <div className="mt-1 text-sm text-white/70">Кнопка открывает список всех пользователей со статусами: бесплатный, платный, админ и сроком доступа.</div>
+                    </div>
+                    <Button type="button" onClick={() => setUsersOpen((current) => !current)}>
+                        {usersOpen ? "Скрыть пользователей" : "Пользователи"}
+                    </Button>
+                </div>
+
+                {usersOpen ? (
+                    <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-left text-sm text-white/80">
+                                <thead className="bg-white/5 text-xs uppercase tracking-[0.2em] text-white/45">
+                                    <tr>
+                                        <th className="px-4 py-3">Пользователь</th>
+                                        <th className="px-4 py-3">Почта</th>
+                                        <th className="px-4 py-3">Статус</th>
+                                        <th className="px-4 py-3">Роль</th>
+                                        <th className="px-4 py-3">Доступ до</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {users.map((user) => (
+                                        <tr key={user.id} className="border-t border-white/10 align-top">
+                                            <td className="px-4 py-3">
+                                                <div className="font-semibold text-white">{user.full_name || "Без имени"}</div>
+                                                <div className="mt-1 text-xs text-white/45">{user.profession || "Профессия не указана"}</div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div>{user.email || "—"}</div>
+                                                <div className="mt-1 text-xs text-white/45">orig: {user.original_email || user.email || "—"}</div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getPlanBadgeClass(user.plan_status)}`}>
+                                                    {getPlanLabel(user.plan_status)}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                {user.status_admin ? (
+                                                    <span className="inline-flex rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100">Админ</span>
+                                                ) : (
+                                                    <span className="inline-flex rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-white/65">Пользователь</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3">{formatDate(user.plan_expires_at)}</td>
+                                        </tr>
+                                    ))}
+                                    {!users.length ? (
+                                        <tr>
+                                            <td colSpan={5} className="px-4 py-6 text-center text-white/55">Пользователи не найдены.</td>
+                                        </tr>
+                                    ) : null}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                ) : null}
+            </section>
+
         </div>
     );
 }
@@ -697,6 +778,25 @@ function Field({ label, children, className = "" }: { label: string; children: R
             {children}
         </div>
     );
+}
+
+function getPlanLabel(plan: AdminUser["plan_status"]) {
+    if (plan === "paid_1m") return "Платный 1 мес.";
+    if (plan === "paid_3m") return "Платный 3 мес.";
+    return "Бесплатный";
+}
+
+function getPlanBadgeClass(plan: AdminUser["plan_status"]) {
+    if (plan === "paid_1m") return "border border-emerald-400/20 bg-emerald-500/10 text-emerald-100";
+    if (plan === "paid_3m") return "border border-sky-400/20 bg-sky-500/10 text-sky-100";
+    return "border border-white/10 bg-white/5 text-white/70";
+}
+
+function formatDate(value: string | null) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString("ru-RU");
 }
 
 function slugify(value: string) {
