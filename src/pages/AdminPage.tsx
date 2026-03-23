@@ -45,6 +45,8 @@ type AdminUser = {
     status_admin: boolean;
     plan_status: "free" | "paid_1m" | "paid_3m";
     plan_expires_at: string | null;
+    first_purchase_at: string | null;
+    purchases_count: number;
     created_at?: string;
 };
 
@@ -162,7 +164,7 @@ export default function AdminPage() {
                 supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("plan_status", "paid_3m"),
                 supabase
                     .from("profiles_les")
-                    .select("id,email,original_email,full_name,profession,avatar_url,status_admin,plan_status,plan_expires_at,created_at")
+                    .select("id,email,original_email,full_name,profession,avatar_url,status_admin,plan_status,plan_expires_at,first_purchase_at,purchases_count,created_at")
                     .order("created_at", { ascending: false }),
             ]);
 
@@ -320,6 +322,8 @@ export default function AdminPage() {
                 status_admin: selectedUser.status_admin,
                 plan_status: selectedUser.plan_status,
                 plan_expires_at: selectedUser.plan_expires_at || null,
+                first_purchase_at: selectedUser.first_purchase_at || null,
+                purchases_count: selectedUser.purchases_count,
             })
             .eq("id", selectedUser.id);
 
@@ -728,6 +732,8 @@ export default function AdminPage() {
                                             <th className="px-4 py-3">Почта</th>
                                             <th className="px-4 py-3">Статус</th>
                                             <th className="px-4 py-3">Роль</th>
+                                            <th className="px-4 py-3">Первая покупка</th>
+                                            <th className="px-4 py-3">Покупок</th>
                                             <th className="px-4 py-3">Доступ до</th>
                                             <th className="px-4 py-3 text-right">Редактировать</th>
                                         </tr>
@@ -755,6 +761,8 @@ export default function AdminPage() {
                                                         <span className="inline-flex rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-white/65">Пользователь</span>
                                                     )}
                                                 </td>
+                                                <td className="px-4 py-3">{formatDate(user.first_purchase_at)}</td>
+                                                <td className="px-4 py-3">{user.purchases_count}</td>
                                                 <td className="px-4 py-3">{formatDate(user.plan_expires_at)}</td>
                                                 <td className="px-4 py-3 text-right">
                                                     <IconToggleButton
@@ -767,7 +775,7 @@ export default function AdminPage() {
                                         ))}
                                         {!users.length ? (
                                             <tr>
-                                                <td colSpan={6} className="px-4 py-6 text-center text-white/55">Пользователи не найдены.</td>
+                                                <td colSpan={8} className="px-4 py-6 text-center text-white/55">Пользователи не найдены.</td>
                                             </tr>
                                         ) : null}
                                     </tbody>
@@ -811,6 +819,12 @@ export default function AdminPage() {
                                     <option value="paid_1m" className="bg-[#06110D]">Платный 1 месяц</option>
                                     <option value="paid_3m" className="bg-[#06110D]">Платный 3 месяца</option>
                                 </select>
+                            </Field>
+                            <Field label="Первая покупка">
+                                <input type="datetime-local" value={toDateTimeLocal(selectedUser.first_purchase_at)} onChange={(event) => setSelectedUser((current) => current ? { ...current, first_purchase_at: fromDateTimeLocal(event.target.value) } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />
+                            </Field>
+                            <Field label="Количество покупок">
+                                <input type="number" min={0} value={selectedUser.purchases_count} onChange={(event) => setSelectedUser((current) => current ? { ...current, purchases_count: Number(event.target.value) || 0 } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />
                             </Field>
                             <Field label="Доступ до">
                                 <input type="datetime-local" value={toDateTimeLocal(selectedUser.plan_expires_at)} onChange={(event) => setSelectedUser((current) => current ? { ...current, plan_expires_at: fromDateTimeLocal(event.target.value) } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />

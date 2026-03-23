@@ -34,6 +34,8 @@ create table if not exists public.profiles_les (
   status_admin boolean not null default false,
   plan_status text not null default 'free',
   plan_expires_at timestamptz,
+  first_purchase_at timestamptz,
+  purchases_count integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -42,6 +44,8 @@ alter table public.profiles_les add column if not exists original_email text;
 alter table public.profiles_les add column if not exists status_admin boolean not null default false;
 alter table public.profiles_les add column if not exists plan_status text not null default 'free';
 alter table public.profiles_les add column if not exists plan_expires_at timestamptz;
+alter table public.profiles_les add column if not exists first_purchase_at timestamptz;
+alter table public.profiles_les add column if not exists purchases_count integer not null default 0;
 
 -- updated_at trigger
 create or replace function public.set_updated_at()
