@@ -9,7 +9,7 @@ import {
 } from "react-router-dom";
 
 /**
- * Lesik — single-file canvas prototype
+ * LESik — single-file canvas prototype
  * - 4 tabs: Home / Library / Assistant / Profile
  * - Premium emerald theme + olive constellation
  * - NetworkCanvasBackground: DPR-aware, resize-safe, subtle drift + mouse parallax
@@ -527,7 +527,7 @@ function ScreenHome() {
         () => [
             {
                 id: "v1",
-                title: "Как пользоваться Lesik",
+                title: "Как пользоваться LESik",
                 hint: "60 секунд: трафик → бот → воронка → оплата",
             },
             {
@@ -704,7 +704,7 @@ function ScreenLibrary() {
         () => [
             {
                 id: "v-how",
-                title: "Как пользоваться Lesik",
+                title: "Как пользоваться LESik",
                 track: "Старт",
                 kind: "video",
                 pro: false,
@@ -972,7 +972,7 @@ function ScreenAssistant() {
     const [msgs, setMsgs] = useState<Msg[]>([
         {
             role: "assistant",
-            text: "Я — Чеширский проводник Lesik. Скажи, что хочешь собрать: воронку, сценарий бота, контент или mini app?",
+            text: "Я — Чеширский проводник LESik. Скажи, что хочешь собрать: воронку, сценарий бота, контент или mini app?",
         },
     ]);
 
