@@ -31,6 +31,7 @@ export default function ProfilePage() {
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [updatingEmail, setUpdatingEmail] = useState(false);
     const [changingPlan, setChangingPlan] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
     const [err, setErr] = useState<string | null>(null);
 
@@ -186,6 +187,23 @@ export default function ProfilePage() {
         await refresh();
     };
 
+
+    const logout = async () => {
+        setLoggingOut(true);
+        setErr(null);
+        setNotice(null);
+
+        const { error: signOutError } = await supabase.auth.signOut();
+
+        if (signOutError) {
+            setErr(signOutError.message);
+            setLoggingOut(false);
+            return;
+        }
+
+        nav("/login", { replace: true });
+    };
+
     const setPlan = async (plan: Exclude<Plan, "free">) => {
         setChangingPlan(true);
         setErr(null);
@@ -305,9 +323,14 @@ export default function ProfilePage() {
                 {err ? <div className="text-sm text-red-300">{err}</div> : null}
                 {notice ? <div className="text-sm text-emerald-300">{notice}</div> : null}
 
-                <Button onClick={save} disabled={saving} className="mt-2 w-full">
-                    {saving ? "Сохраняю..." : onboarding ? "Сохранить и продолжить" : "Сохранить"}
-                </Button>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <Button onClick={save} disabled={saving} className="w-full">
+                        {saving ? "Сохраняю..." : onboarding ? "Сохранить и продолжить" : "Сохранить"}
+                    </Button>
+                    <Button onClick={logout} disabled={loggingOut} className="w-full">
+                        {loggingOut ? "Выход..." : "Выйти из профиля"}
+                    </Button>
+                </div>
             </div>
         </div>
     );
