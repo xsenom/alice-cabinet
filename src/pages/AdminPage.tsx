@@ -120,10 +120,6 @@ export default function AdminPage() {
     }, [groups]);
 
     useEffect(() => {
-        saveLibraryContentSettings(groups);
-    }, [groups]);
-
-    useEffect(() => {
         const load = async () => {
             setLoading(true);
             setError(null);
