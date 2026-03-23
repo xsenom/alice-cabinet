@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabase/client";
 import Button from "../components/ui/Button";
+import { supabase } from "../lib/supabase/client";
+import { DEMO } from "../lib/library/demo";
+import type { LessonComment, LessonPdf, TopicKey } from "../lib/library/types";
 
 type Stats = {
     total: number;
@@ -10,129 +12,82 @@ type Stats = {
     paid3m: number;
 };
 
-type VideoSection = "Главная" | "Библиотека";
-type VideoAccess = "free" | "pro";
+type LessonAccess = "free" | "pro";
 
-type VideoSlot = {
+type AdminLesson = {
     id: string;
-    section: VideoSection;
     title: string;
-    filename: string;
-    note: string;
+    goal: string;
+    access: LessonAccess;
+    videoLabel: string;
+    videoUrl: string;
+    timecodes: string;
+    videoDescription: string;
+    pdfs: LessonPdf[];
+    comments: LessonComment[];
+    averageRating: number;
+    ratingsCount: number;
 };
 
-type VideoGroupOption = {
-    value: string;
-    label: string;
-    path: string;
-};
-
-type CustomVideoDraft = {
+type AdminGroup = {
+    id: string;
     title: string;
-    group: string;
-    slug: string;
-    description: string;
-    access: VideoAccess | "";
-};
-
-type UploadedCustomVideo = CustomVideoDraft & {
-    access: VideoAccess;
-    filePath: string;
-    publicUrl: string;
+    lessons: AdminLesson[];
 };
 
 const VIDEO_BUCKET = (import.meta.env.VITE_SUPABASE_VIDEOS_BUCKET as string | undefined)?.trim() || "videos";
 
-const DEFAULT_VIDEO_GROUP_OPTIONS: VideoGroupOption[] = [
-    { value: "miniapp", label: "Миниапп", path: "miniapp" },
-    { value: "voronka", label: "Воронка", path: "voronka" },
-    { value: "bots", label: "Боты", path: "bots" },
-    { value: "ai", label: "AI", path: "ai" },
-    { value: "prochee", label: "Прочее", path: "prochee" },
-];
-
-const VIDEO_SLOTS: VideoSlot[] = [
-    {
-        id: "home-how-to-use",
-        section: "Главная",
-        title: "Как пользоваться Lesik",
-        filename: "how-to-use-lesik.mp4",
-        note: "Быстрое онбординг-видео для новых пользователей.",
-    },
-    {
-        id: "home-who-needs",
-        section: "Главная",
-        title: "Кому будет полезно",
-        filename: "who-needs-lesik.mp4",
-        note: "Короткий ролик с кейсами и пользой продукта.",
-    },
-    {
-        id: "home-miniapp-pro",
-        section: "Главная",
-        title: "Mini App в Telegram (PRO)",
-        filename: "miniapp-pro.mp4",
-        note: "Платный ролик для витрины на главной странице.",
-    },
-    {
-        id: "library-funnel-01",
-        section: "Библиотека",
-        title: "Воронки — урок 01",
-        filename: "funnel-01.mp4",
-        note: "Урок про продуктовую линейку.",
-    },
-    {
-        id: "library-funnel-02",
-        section: "Библиотека",
-        title: "Воронки — урок 02",
-        filename: "funnel-02.mp4",
-        note: "Урок про прогревы.",
-    },
-    {
-        id: "library-bot-01",
-        section: "Библиотека",
-        title: "Боты — урок 01",
-        filename: "bot-01.mp4",
-        note: "Премиум-урок по сценариям бота.",
-    },
-    {
-        id: "library-ai-01",
-        section: "Библиотека",
-        title: "AI — урок 01",
-        filename: "ai-01.mp4",
-        note: "Премиум-урок про AI-ассистента.",
-    },
-    {
-        id: "library-miniapp-01",
-        section: "Библиотека",
-        title: "Mini App — урок 01",
-        filename: "miniapp-01.mp4",
-        note: "Премиум-урок про экран каталога.",
-    },
-];
-
-const INITIAL_CUSTOM_DRAFT: CustomVideoDraft = {
-    title: "",
-    group: DEFAULT_VIDEO_GROUP_OPTIONS[0].value,
-    slug: "",
-    description: "",
-    access: "",
+const DEFAULT_COMMENT_MAP: Record<string, LessonComment[]> = {
+    f01: [
+        { lessonId: "f01", text: "Супер! Наконец-то стало понятно, как выстроить линейку.", ts: "сегодня, 12:40" },
+        { lessonId: "f01", text: "Хочется ещё пример по прогреву через сторис.", ts: "вчера, 18:10" },
+    ],
+    f02: [{ lessonId: "f02", text: "Очень полезны тайм-коды, пересматриваю отдельные куски.", ts: "сегодня, 09:15" }],
+    b01: [{ lessonId: "b01", text: "Добавьте шаблон сообщений для welcome-цепочки.", ts: "сегодня, 11:02" }],
 };
+
+const DEFAULT_RATINGS: Record<string, { averageRating: number; ratingsCount: number }> = {
+    f01: { averageRating: 4.8, ratingsCount: 32 },
+    f02: { averageRating: 4.6, ratingsCount: 18 },
+    b01: { averageRating: 4.9, ratingsCount: 14 },
+    ai01: { averageRating: 4.7, ratingsCount: 11 },
+    m01: { averageRating: 4.5, ratingsCount: 9 },
+};
+
+function buildInitialGroups(): AdminGroup[] {
+    return (Object.entries(DEMO) as Array<[TopicKey, typeof DEMO[TopicKey]]>).map(([topic, lessons]) => ({
+        id: slugify(topic),
+        title: topic,
+        lessons: lessons.map((lesson) => ({
+            id: lesson.id,
+            title: lesson.title,
+            goal: lesson.goal,
+            access: lesson.premium ? "pro" : "free",
+            videoLabel: lesson.video?.label ?? lesson.title,
+            videoUrl: lesson.video?.url ?? "",
+            timecodes: "00:00 — Вступление\n03:40 — Ключевая мысль\n12:15 — Практический пример",
+            videoDescription: lesson.goal,
+            pdfs: lesson.pdfs ?? [],
+            comments: DEFAULT_COMMENT_MAP[lesson.id] ?? [],
+            averageRating: DEFAULT_RATINGS[lesson.id]?.averageRating ?? 0,
+            ratingsCount: DEFAULT_RATINGS[lesson.id]?.ratingsCount ?? 0,
+        })),
+    }));
+}
 
 export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [stats, setStats] = useState<Stats>({ total: 0, admins: 0, free: 0, paid1m: 0, paid3m: 0 });
 
+    const [groups, setGroups] = useState<AdminGroup[]>(() => buildInitialGroups());
+    const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+    const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
+    const [newGroupTitle, setNewGroupTitle] = useState("");
+
     const [uploadingId, setUploadingId] = useState<string | null>(null);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [uploadNotice, setUploadNotice] = useState<string | null>(null);
-    const [uploadedUrls, setUploadedUrls] = useState<Record<string, string>>({});
-
-    const [videoGroups, setVideoGroups] = useState<VideoGroupOption[]>(DEFAULT_VIDEO_GROUP_OPTIONS);
-    const [newGroupName, setNewGroupName] = useState("");
-    const [customDraft, setCustomDraft] = useState<CustomVideoDraft>(INITIAL_CUSTOM_DRAFT);
-    const [customFile, setCustomFile] = useState<File | null>(null);
-    const [uploadedCustomVideos, setUploadedCustomVideos] = useState<UploadedCustomVideo[]>([]);
 
     useEffect(() => {
         const load = async () => {
@@ -167,27 +122,27 @@ export default function AdminPage() {
         void load();
     }, []);
 
-    const groupedSlots = useMemo(() => {
-        return VIDEO_SLOTS.reduce<Record<VideoSection, VideoSlot[]>>(
-            (acc, slot) => {
-                acc[slot.section].push(slot);
-                return acc;
-            },
-            { Главная: [], Библиотека: [] }
-        );
-    }, []);
-
-    const activeGroup = useMemo(
-        () => videoGroups.find((option) => option.value === customDraft.group) ?? videoGroups[0],
-        [customDraft.group, videoGroups]
+    const totalLessons = useMemo(() => groups.reduce((acc, group) => acc + group.lessons.length, 0), [groups]);
+    const totalComments = useMemo(
+        () => groups.reduce((acc, group) => acc + group.lessons.reduce((sum, lesson) => sum + lesson.comments.length, 0), 0),
+        [groups]
     );
 
-    const customPreviewSlug = slugify(customDraft.slug || "example-video");
+    const updateGroup = (groupId: string, updater: (group: AdminGroup) => AdminGroup) => {
+        setGroups((current) => current.map((group) => (group.id === groupId ? updater(group) : group)));
+    };
+
+    const updateLesson = (groupId: string, lessonId: string, updater: (lesson: AdminLesson) => AdminLesson) => {
+        updateGroup(groupId, (group) => ({
+            ...group,
+            lessons: group.lessons.map((lesson) => (lesson.id === lessonId ? updater(lesson) : lesson)),
+        }));
+    };
 
     const uploadToStorage = async (storageKey: string, file: File) => {
         const { error: storageError } = await supabase.storage.from(VIDEO_BUCKET).upload(storageKey, file, {
             cacheControl: "3600",
-            contentType: file.type || "video/mp4",
+            contentType: file.type || undefined,
             upsert: true,
         });
 
@@ -202,453 +157,333 @@ export default function AdminPage() {
         return publicUrl;
     };
 
-    const handleUpload = async (slot: VideoSlot, file?: File) => {
+    const handleVideoUpload = async (groupId: string, lessonId: string, file?: File) => {
         if (!file) return;
-
         if (!file.type.startsWith("video/")) {
             setUploadError("Можно загружать только видеофайлы.");
             setUploadNotice(null);
             return;
         }
 
-        setUploadingId(slot.id);
+        setUploadingId(lessonId);
         setUploadError(null);
         setUploadNotice(null);
 
         try {
-            const publicUrl = await uploadToStorage(`public/${slot.filename}`, file);
-            setUploadedUrls((current) => ({ ...current, [slot.id]: publicUrl }));
-            setUploadNotice(`Файл «${slot.title}» загружен. Публичная ссылка готова.`);
+            const ext = getFileExtension(file.name);
+            const storageKey = `library/${groupId}/${lessonId}/video.${ext}`;
+            const publicUrl = await uploadToStorage(storageKey, file);
+            updateLesson(groupId, lessonId, (lesson) => ({ ...lesson, videoUrl: publicUrl }));
+            setUploadNotice("Видео загружено и привязано к уроку.");
         } catch (uploadStorageError) {
-            const message = uploadStorageError instanceof Error ? uploadStorageError.message : "Не удалось загрузить видео.";
-            setUploadError(message);
+            setUploadError(uploadStorageError instanceof Error ? uploadStorageError.message : "Не удалось загрузить видео.");
         } finally {
             setUploadingId(null);
         }
     };
 
-    const handleCustomFieldChange = (field: keyof CustomVideoDraft, value: string) => {
-        setCustomDraft((current) => {
-            if (field === "title") {
-                const nextSlug = current.slug || slugify(value);
-                return { ...current, title: value, slug: nextSlug };
-            }
-
-            return { ...current, [field]: value };
-        });
-    };
-
-    const handleAddGroup = () => {
-        const safeValue = slugify(newGroupName);
-        const trimmedLabel = newGroupName.trim();
-
-        if (!trimmedLabel) {
-            setUploadError("Введите название новой группы.");
+    const handlePdfUpload = async (groupId: string, lessonId: string, file?: File) => {
+        if (!file) return;
+        if (file.type !== "application/pdf") {
+            setUploadError("Можно загружать только PDF-файлы.");
             setUploadNotice(null);
             return;
         }
 
-        if (!safeValue) {
-            setUploadError("Название группы должно содержать латиницу или цифры, чтобы можно было создать путь.");
-            setUploadNotice(null);
-            return;
-        }
-
-        if (videoGroups.some((group) => group.value === safeValue || group.label.toLowerCase() === trimmedLabel.toLowerCase())) {
-            setUploadError("Такая группа уже существует.");
-            setUploadNotice(null);
-            return;
-        }
-
-        const nextGroup = { value: safeValue, label: trimmedLabel, path: safeValue };
-        setVideoGroups((current) => [...current, nextGroup]);
-        setCustomDraft((current) => ({ ...current, group: nextGroup.value }));
-        setNewGroupName("");
-        setUploadError(null);
-        setUploadNotice(`Группа «${trimmedLabel}» добавлена.`);
-    };
-
-    const handleCustomUpload = async () => {
-        if (!customDraft.title.trim()) {
-            setUploadError("Укажите название ролика.");
-            setUploadNotice(null);
-            return;
-        }
-
-        if (!customDraft.group) {
-            setUploadError("Выберите группу для ролика.");
-            setUploadNotice(null);
-            return;
-        }
-
-        if (!customDraft.access) {
-            setUploadError("Обязательно выберите доступ: Pro или бесплатный.");
-            setUploadNotice(null);
-            return;
-        }
-
-        if (!customDraft.slug.trim()) {
-            setUploadError("Укажите системное имя ролика.");
-            setUploadNotice(null);
-            return;
-        }
-
-        if (!customFile) {
-            setUploadError("Выберите видеофайл для загрузки.");
-            setUploadNotice(null);
-            return;
-        }
-
-        if (!customFile.type.startsWith("video/")) {
-            setUploadError("Можно загружать только видеофайлы.");
-            setUploadNotice(null);
-            return;
-        }
-
-        const safeSlug = slugify(customDraft.slug);
-        if (!safeSlug) {
-            setUploadError("Системное имя должно содержать латиницу или цифры.");
-            setUploadNotice(null);
-            return;
-        }
-
-        if (!activeGroup) {
-            setUploadError("Не удалось определить группу для ролика.");
-            setUploadNotice(null);
-            return;
-        }
-
-        const access = customDraft.access as VideoAccess;
-
-        setUploadingId("custom-video");
+        setUploadingId(`${lessonId}-pdf`);
         setUploadError(null);
         setUploadNotice(null);
 
         try {
-            const ext = getFileExtension(customFile.name);
-            const filePath = `custom/${activeGroup.path}/${safeSlug}.${ext}`;
-            const publicUrl = await uploadToStorage(filePath, customFile);
+            const storageKey = `library/${groupId}/${lessonId}/pdf/${slugify(file.name.replace(/\.pdf$/i, "")) || "material"}.pdf`;
+            await uploadToStorage(storageKey, file);
+            updateLesson(groupId, lessonId, (lesson) => ({
+                ...lesson,
+                pdfs: [{ name: file.name }, ...lesson.pdfs],
+            }));
+            setUploadNotice("PDF добавлен к уроку.");
+        } catch (uploadStorageError) {
+            setUploadError(uploadStorageError instanceof Error ? uploadStorageError.message : "Не удалось загрузить PDF.");
+        } finally {
+            setUploadingId(null);
+        }
+    };
 
-            setUploadedCustomVideos((current) => [
+    const addGroup = () => {
+        const title = newGroupTitle.trim();
+        if (!title) {
+            setUploadError("Введите название блока.");
+            setUploadNotice(null);
+            return;
+        }
+
+        const id = `${slugify(title) || "block"}-${Date.now()}`;
+        setGroups((current) => [...current, { id, title, lessons: [] }]);
+        setNewGroupTitle("");
+        setEditingGroupId(id);
+        setUploadError(null);
+        setUploadNotice(`Блок «${title}» добавлен.`);
+    };
+
+    const addLesson = (groupId: string) => {
+        const lessonId = `${groupId}-${Date.now()}`;
+        updateGroup(groupId, (group) => ({
+            ...group,
+            lessons: [
+                ...group.lessons,
                 {
-                    ...customDraft,
-                    slug: safeSlug,
-                    access,
-                    filePath,
-                    publicUrl,
+                    id: lessonId,
+                    title: "Новый урок",
+                    goal: "Добавьте краткое описание урока.",
+                    access: "free",
+                    videoLabel: "Новый урок",
+                    videoUrl: "",
+                    timecodes: "00:00 — Вступление",
+                    videoDescription: "Добавьте описание к видео.",
+                    pdfs: [],
+                    comments: [],
+                    averageRating: 0,
+                    ratingsCount: 0,
                 },
-                ...current,
-            ]);
-            setUploadNotice(
-                `Новый ролик «${customDraft.title}» добавлен в группу «${activeGroup.label}» с доступом «${getAccessLabel(access)}».`
-            );
-            setCustomDraft((current) => ({ ...INITIAL_CUSTOM_DRAFT, group: current.group }));
-            setCustomFile(null);
-        } catch (uploadStorageError) {
-            const message = uploadStorageError instanceof Error ? uploadStorageError.message : "Не удалось загрузить видео.";
-            setUploadError(message);
-        } finally {
-            setUploadingId(null);
-        }
+            ],
+        }));
+        setEditingLessonId(lessonId);
     };
 
     return (
         <div className="space-y-5">
             <section className="rounded-3xl border border-white/10 bg-[rgba(6,17,13,0.72)] p-5 backdrop-blur-xl">
                 <div className="text-2xl font-semibold">Админ-панель</div>
-                <div className="mt-1 text-sm text-white/70">Статистика клиентов и центр загрузки видео для главной страницы, библиотеки и будущих роликов.</div>
+                <div className="mt-1 text-sm text-white/70">Единый блок управления библиотекой: группы, уроки, видео, тайм-коды, описание, PDF, оценки и комментарии.</div>
 
                 {loading ? <div className="mt-4 text-white/70">Загрузка...</div> : null}
                 {error ? <div className="mt-4 text-red-300">Ошибка: {error}</div> : null}
 
                 {!loading && !error ? (
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <Card title="Всего клиентов" value={stats.total} />
                         <Card title="Администраторы" value={stats.admins} />
-                        <Card title="Бесплатный" value={stats.free} />
-                        <Card title="Тариф 1 месяц" value={stats.paid1m} />
-                        <Card title="Тариф 3 месяца" value={stats.paid3m} />
+                        <Card title="Уроков в библиотеке" value={totalLessons} />
+                        <Card title="Комментариев к урокам" value={totalComments} />
                     </div>
                 ) : null}
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-[rgba(6,17,13,0.72)] p-5 backdrop-blur-xl">
-                <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                     <div>
-                        <div className="text-xl font-semibold">Загрузка действующих роликов</div>
-                        <div className="mt-1 text-sm text-white/70">
-                            Видео отправляются в Supabase Storage bucket <span className="font-semibold text-white">{VIDEO_BUCKET}</span> по пути
-                            <span className="ml-1 font-mono text-white">public/&lt;filename&gt;</span>.
-                        </div>
+                        <div className="text-xl font-semibold">Библиотека</div>
+                        <div className="mt-1 text-sm text-white/70">Без разделения на отдельные админ-блоки: здесь можно редактировать действующие блоки, добавлять новые названия блоков и новые уроки.</div>
                     </div>
-                    <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-100">
-                        Если ваш CDN или reverse proxy смотрит в этот bucket, новые файлы можно публиковать без деплоя фронтенда.
+                    <div className="flex w-full max-w-xl flex-col gap-3 sm:flex-row">
+                        <input
+                            value={newGroupTitle}
+                            onChange={(event) => setNewGroupTitle(event.target.value)}
+                            placeholder="Название нового блока"
+                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35"
+                        />
+                        <Button type="button" onClick={addGroup} className="shrink-0">
+                            Добавить блок
+                        </Button>
                     </div>
                 </div>
 
                 {uploadError ? <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">{uploadError}</div> : null}
                 {uploadNotice ? <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">{uploadNotice}</div> : null}
 
-                <div className="mt-5 space-y-5">
-                    {(["Главная", "Библиотека"] as const).map((section) => (
-                        <div key={section}>
-                            <div className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-white/50">{section}</div>
-                            <div className="grid gap-3 xl:grid-cols-2">
-                                {groupedSlots[section].map((slot) => {
-                                    const publicUrl = uploadedUrls[slot.id];
-                                    const isUploading = uploadingId === slot.id;
+                <div className="mt-5 space-y-4">
+                    {groups.map((group) => {
+                        const isEditingGroup = editingGroupId === group.id;
 
-                                    return (
-                                        <div key={slot.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <div className="text-base font-semibold text-white">{slot.title}</div>
-                                                    <div className="mt-1 text-sm text-white/65">{slot.note}</div>
-                                                </div>
-                                                <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-right text-xs text-white/60">
-                                                    <div className="font-mono text-white">{slot.filename}</div>
-                                                    <div className="mt-1">/{slot.filename}</div>
-                                                </div>
-                                            </div>
-
-                                            <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                                <label className="inline-flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white hover:bg-white/10">
-                                                    <input
-                                                        type="file"
-                                                        accept="video/*"
-                                                        className="hidden"
-                                                        onChange={(event) => {
-                                                            void handleUpload(slot, event.target.files?.[0]);
-                                                            event.currentTarget.value = "";
-                                                        }}
-                                                    />
-                                                    <span>{isUploading ? "Загрузка..." : "Выбрать видео"}</span>
-                                                </label>
-
-                                                <div className="flex flex-wrap items-center gap-2 text-xs text-white/55">
-                                                    <span className="rounded-full border border-white/10 px-3 py-1">MP4 / MOV / WEBM</span>
-                                                    <span className="rounded-full border border-white/10 px-3 py-1">upsert включён</span>
-                                                </div>
-                                            </div>
-
-                                            {publicUrl ? <UrlCard publicUrl={publicUrl} /> : null}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            <section className="rounded-3xl border border-white/10 bg-[rgba(6,17,13,0.72)] p-5 backdrop-blur-xl">
-                <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                        <div className="text-xl font-semibold">Новый ролик для будущих материалов</div>
-                        <div className="mt-1 text-sm text-white/70">
-                            Здесь можно заранее завести новый ролик: ввести название, добавить новую группу при необходимости и обязательно выбрать тип доступа.
-                        </div>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70">
-                        Путь будет создан в формате <span className="font-mono text-white">custom/{activeGroup?.path ?? "group"}/{customPreviewSlug}.mp4</span>
-                    </div>
-                </div>
-
-                <div className="mt-5 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <Field label="Название ролика">
-                                <input
-                                    type="text"
-                                    value={customDraft.title}
-                                    onChange={(event) => handleCustomFieldChange("title", event.target.value)}
-                                    placeholder="Например: Mini App — экран оплаты"
-                                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35"
-                                />
-                            </Field>
-
-                            <Field label="Доступ">
-                                <select
-                                    value={customDraft.access}
-                                    onChange={(event) => handleCustomFieldChange("access", event.target.value)}
-                                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                                >
-                                    <option value="" className="bg-[#06110D]">Выберите доступ</option>
-                                    <option value="free" className="bg-[#06110D]">Бесплатный</option>
-                                    <option value="pro" className="bg-[#06110D]">PRO</option>
-                                </select>
-                            </Field>
-
-                            <Field label="Группа">
-                                <select
-                                    value={customDraft.group}
-                                    onChange={(event) => handleCustomFieldChange("group", event.target.value)}
-                                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                                >
-                                    {videoGroups.map((option) => (
-                                        <option key={option.value} value={option.value} className="bg-[#06110D]">
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </Field>
-
-                            <Field label="Системное имя">
-                                <input
-                                    type="text"
-                                    value={customDraft.slug}
-                                    onChange={(event) => handleCustomFieldChange("slug", event.target.value)}
-                                    placeholder="miniapp-ekran-oplaty"
-                                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35"
-                                />
-                            </Field>
-                        </div>
-
-                        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <div className="mb-3 text-sm text-white/60">Добавить новую группу</div>
-                            <div className="flex flex-col gap-3 lg:flex-row">
-                                <input
-                                    type="text"
-                                    value={newGroupName}
-                                    onChange={(event) => setNewGroupName(event.target.value)}
-                                    placeholder="Например: Вебинары"
-                                    className="w-full rounded-2xl border border-white/10 bg-[rgba(6,17,13,0.65)] px-4 py-3 text-sm text-white outline-none placeholder:text-white/35"
-                                />
-                                <Button type="button" onClick={handleAddGroup} className="shrink-0">
-                                    Добавить группу
-                                </Button>
-                            </div>
-                            <div className="mt-2 text-xs text-white/45">Для storage будет использован slug на латинице, например `webinary` или `sales-course`.</div>
-                        </div>
-
-                        <div className="mt-4 grid gap-4 md:grid-cols-2">
-                            <Field label="Видеофайл">
-                                <label className="flex min-h-[48px] cursor-pointer items-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white hover:bg-white/10">
-                                    <input
-                                        type="file"
-                                        accept="video/*"
-                                        className="hidden"
-                                        onChange={(event) => setCustomFile(event.target.files?.[0] ?? null)}
-                                    />
-                                    <span className="truncate">{customFile?.name ?? "Выбрать видео"}</span>
-                                </label>
-                            </Field>
-                            <Field label="Итоговый доступ">
-                                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
-                                    {customDraft.access ? getAccessLabel(customDraft.access) : "Не выбран"}
-                                </div>
-                            </Field>
-                        </div>
-
-                        <Field label="Комментарий / примечание" className="mt-4">
-                            <textarea
-                                value={customDraft.description}
-                                onChange={(event) => handleCustomFieldChange("description", event.target.value)}
-                                rows={4}
-                                placeholder="Например: ролик для будущего блока по продажам в Mini App"
-                                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35"
-                            />
-                        </Field>
-
-                        <div className="mt-4 flex flex-wrap items-center gap-3">
-                            <Button type="button" onClick={() => void handleCustomUpload()} disabled={uploadingId === "custom-video"}>
-                                {uploadingId === "custom-video" ? "Загрузка..." : "Добавить новый ролик"}
-                            </Button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setCustomDraft((current) => ({ ...INITIAL_CUSTOM_DRAFT, group: current.group }));
-                                    setCustomFile(null);
-                                }}
-                                className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-white/75 hover:bg-white/10"
-                            >
-                                Сбросить
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                        <div className="text-sm font-semibold uppercase tracking-[0.2em] text-white/50">Предпросмотр пути</div>
-                        <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
-                            <div className="text-xs text-white/45">Storage key</div>
-                            <div className="mt-2 break-all font-mono text-emerald-200">
-                                custom/{activeGroup?.path ?? "group"}/{customPreviewSlug}.{getFileExtension(customFile?.name)}
-                            </div>
-                            <div className="mt-4 text-xs text-white/45">Параметры публикации</div>
-                            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-white/65">
-                                <li>Группу можно выбрать из списка или добавить новую прямо в админке.</li>
-                                <li>Для каждого нового ролика обязательно указывается доступ: бесплатный или PRO.</li>
-                                <li>После загрузки вы сразу получаете готовую публичную ссылку.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                {uploadedCustomVideos.length ? (
-                    <div className="mt-5">
-                        <div className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-white/50">Недавно добавленные будущие ролики</div>
-                        <div className="grid gap-3 xl:grid-cols-2">
-                            {uploadedCustomVideos.map((video) => {
-                                const groupLabel = videoGroups.find((option) => option.value === video.group)?.label ?? video.group;
-
-                                return (
-                                    <div key={video.filePath} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <div className="text-base font-semibold text-white">{video.title}</div>
-                                            <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/60">{groupLabel}</span>
-                                            <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
-                                                {getAccessLabel(video.access)}
-                                            </span>
-                                        </div>
-                                        {video.description ? <div className="mt-2 text-sm text-white/65">{video.description}</div> : null}
-                                        <div className="mt-3 text-xs text-white/45">{video.filePath}</div>
-                                        <UrlCard publicUrl={video.publicUrl} />
+                        return (
+                            <div key={group.id} className="rounded-3xl border border-white/10 bg-black/20 p-4">
+                                <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                                    <div className="flex-1">
+                                        {isEditingGroup ? (
+                                            <input
+                                                value={group.title}
+                                                onChange={(event) => updateGroup(group.id, (current) => ({ ...current, title: event.target.value }))}
+                                                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-lg font-semibold text-white outline-none"
+                                            />
+                                        ) : (
+                                            <div className="text-lg font-semibold text-white">{group.title}</div>
+                                        )}
+                                        <div className="mt-1 text-sm text-white/55">Уроков: {group.lessons.length}</div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ) : null}
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button type="button" onClick={() => setEditingGroupId(isEditingGroup ? null : group.id)}>
+                                            {isEditingGroup ? "Сохранить блок" : "Редактировать блок"}
+                                        </Button>
+                                        <Button type="button" onClick={() => addLesson(group.id)}>
+                                            Добавить урок
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 space-y-4">
+                                    {group.lessons.map((lesson, index) => {
+                                        const isEditingLesson = editingLessonId === lesson.id;
+
+                                        return (
+                                            <div key={lesson.id} className="rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.03)] p-4">
+                                                <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                                                    <div className="flex-1">
+                                                        <div className="text-xs uppercase tracking-[0.2em] text-white/45">Урок {index + 1}</div>
+                                                        {isEditingLesson ? (
+                                                            <input
+                                                                value={lesson.title}
+                                                                onChange={(event) => updateLesson(group.id, lesson.id, (current) => ({ ...current, title: event.target.value }))}
+                                                                className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base font-semibold text-white outline-none"
+                                                            />
+                                                        ) : (
+                                                            <div className="mt-2 text-base font-semibold text-white">{lesson.title}</div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Button type="button" onClick={() => setEditingLessonId(isEditingLesson ? null : lesson.id)}>
+                                                            {isEditingLesson ? "Сохранить урок" : "Редактировать урок"}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                                                    <Field label="Название урока">
+                                                        <input
+                                                            value={lesson.title}
+                                                            onChange={(event) => updateLesson(group.id, lesson.id, (current) => ({ ...current, title: event.target.value }))}
+                                                            disabled={!isEditingLesson}
+                                                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none disabled:opacity-60"
+                                                        />
+                                                    </Field>
+                                                    <Field label="Доступ">
+                                                        <select
+                                                            value={lesson.access}
+                                                            onChange={(event) => updateLesson(group.id, lesson.id, (current) => ({ ...current, access: event.target.value as LessonAccess }))}
+                                                            disabled={!isEditingLesson}
+                                                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none disabled:opacity-60"
+                                                        >
+                                                            <option value="free" className="bg-[#06110D]">Бесплатный</option>
+                                                            <option value="pro" className="bg-[#06110D]">PRO</option>
+                                                        </select>
+                                                    </Field>
+                                                    <Field label="Описание урока">
+                                                        <textarea
+                                                            value={lesson.goal}
+                                                            onChange={(event) => updateLesson(group.id, lesson.id, (current) => ({ ...current, goal: event.target.value }))}
+                                                            disabled={!isEditingLesson}
+                                                            rows={4}
+                                                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none disabled:opacity-60"
+                                                        />
+                                                    </Field>
+                                                    <Field label="Описание к видео">
+                                                        <textarea
+                                                            value={lesson.videoDescription}
+                                                            onChange={(event) => updateLesson(group.id, lesson.id, (current) => ({ ...current, videoDescription: event.target.value }))}
+                                                            disabled={!isEditingLesson}
+                                                            rows={4}
+                                                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none disabled:opacity-60"
+                                                        />
+                                                    </Field>
+                                                    <Field label="Тайм-коды" className="xl:col-span-2">
+                                                        <textarea
+                                                            value={lesson.timecodes}
+                                                            onChange={(event) => updateLesson(group.id, lesson.id, (current) => ({ ...current, timecodes: event.target.value }))}
+                                                            disabled={!isEditingLesson}
+                                                            rows={5}
+                                                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-mono text-sm text-white outline-none disabled:opacity-60"
+                                                        />
+                                                    </Field>
+                                                </div>
+
+                                                <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                                                            <div>
+                                                                <div className="text-sm font-semibold text-white">Видео урока</div>
+                                                                <div className="mt-1 break-all text-xs text-white/55">{lesson.videoUrl || "Видео пока не загружено"}</div>
+                                                            </div>
+                                                            <label className="inline-flex cursor-pointer items-center rounded-2xl border border-white/10 px-4 py-3 text-sm text-white hover:bg-white/10">
+                                                                <input
+                                                                    type="file"
+                                                                    accept="video/*"
+                                                                    className="hidden"
+                                                                    onChange={(event) => {
+                                                                        void handleVideoUpload(group.id, lesson.id, event.target.files?.[0]);
+                                                                        event.currentTarget.value = "";
+                                                                    }}
+                                                                />
+                                                                <span>{uploadingId === lesson.id ? "Загрузка..." : "Загрузить видео"}</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                        <div className="text-sm font-semibold text-white">Оценка ролика</div>
+                                                        <div className="mt-2 text-3xl font-semibold text-white">{lesson.averageRating ? lesson.averageRating.toFixed(1) : "—"}</div>
+                                                        <div className="mt-1 text-sm text-white/55">Голосов: {lesson.ratingsCount}</div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <div className="text-sm font-semibold text-white">PDF файлы</div>
+                                                            <label className="inline-flex cursor-pointer items-center rounded-2xl border border-white/10 px-4 py-2 text-sm text-white hover:bg-white/10">
+                                                                <input
+                                                                    type="file"
+                                                                    accept="application/pdf"
+                                                                    className="hidden"
+                                                                    onChange={(event) => {
+                                                                        void handlePdfUpload(group.id, lesson.id, event.target.files?.[0]);
+                                                                        event.currentTarget.value = "";
+                                                                    }}
+                                                                />
+                                                                <span>{uploadingId === `${lesson.id}-pdf` ? "Загрузка..." : "Добавить PDF"}</span>
+                                                            </label>
+                                                        </div>
+                                                        <div className="mt-3 space-y-2">
+                                                            {lesson.pdfs.length ? (
+                                                                lesson.pdfs.map((pdf) => (
+                                                                    <div key={`${lesson.id}-${pdf.name}`} className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-white/80">
+                                                                        {pdf.name}
+                                                                    </div>
+                                                                ))
+                                                            ) : (
+                                                                <div className="text-sm text-white/55">PDF пока не добавлены.</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                        <div className="text-sm font-semibold text-white">Комментарии посмотревших</div>
+                                                        <div className="mt-3 space-y-2">
+                                                            {lesson.comments.length ? (
+                                                                lesson.comments.map((comment, commentIndex) => (
+                                                                    <div key={`${lesson.id}-${commentIndex}`} className="rounded-2xl border border-white/10 px-3 py-3">
+                                                                        <div className="flex items-center justify-between gap-3 text-xs text-white/45">
+                                                                            <span>Пользователь</span>
+                                                                            <span>{comment.ts}</span>
+                                                                        </div>
+                                                                        <div className="mt-2 text-sm text-white/80">{comment.text}</div>
+                                                                    </div>
+                                                                ))
+                                                            ) : (
+                                                                <div className="text-sm text-white/55">Комментариев пока нет.</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {!group.lessons.length ? <div className="text-sm text-white/55">В этом блоке пока нет уроков. Нажмите «Добавить урок».</div> : null}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </section>
-        </div>
-    );
-}
-
-function UrlCard({ publicUrl }: { publicUrl: string }) {
-    return (
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/80">
-            <div className="mb-2 text-xs uppercase tracking-[0.2em] text-white/45">Публичная ссылка</div>
-            <div className="break-all font-mono text-xs text-emerald-200">{publicUrl}</div>
-            <div className="mt-3 flex flex-wrap gap-2">
-                <Button type="button" onClick={() => navigator.clipboard.writeText(publicUrl)} className="!px-3 !py-2">
-                    Копировать ссылку
-                </Button>
-                <a
-                    href={publicUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center rounded-2xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
-                >
-                    Открыть видео
-                </a>
-            </div>
-        </div>
-    );
-}
-
-function Field({
-    label,
-    children,
-    className = "",
-}: {
-    label: string;
-    children: React.ReactNode;
-    className?: string;
-}) {
-    return (
-        <div className={className}>
-            <div className="mb-2 text-sm text-white/60">{label}</div>
-            {children}
         </div>
     );
 }
@@ -657,7 +492,16 @@ function Card({ title, value }: { title: string; value: number }) {
     return (
         <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
             <div className="text-sm text-white/70">{title}</div>
-            <div className="mt-1 text-3xl font-semibold">{value}</div>
+            <div className="mt-1 text-3xl font-semibold text-white">{value}</div>
+        </div>
+    );
+}
+
+function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+    return (
+        <div className={className}>
+            <div className="mb-2 text-sm text-white/60">{label}</div>
+            {children}
         </div>
     );
 }
@@ -674,8 +518,4 @@ function slugify(value: string) {
 function getFileExtension(filename?: string) {
     const rawExt = filename?.split(".").pop()?.toLowerCase() || "mp4";
     return rawExt.replace(/[^a-z0-9]/g, "") || "mp4";
-}
-
-function getAccessLabel(access: VideoAccess) {
-    return access === "pro" ? "PRO" : "Бесплатный";
 }
