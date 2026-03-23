@@ -7,6 +7,7 @@ import NetworkCanvasBackground from "../components/background/NetworkCanvasBackg
 import ForestBackdrop from "../components/background/ForestBackdrop";
 import { useSessionProfile } from "../hooks/useSessionProfile";
 import { APP_NAME } from "../lib/branding";
+import { SITE_FOOTER } from "../lib/siteConfig";
 
 const TOKENS = { text: "#F2F4F3" };
 
@@ -37,8 +38,9 @@ export default function AppLayout() {
                 {isDesktop ? (
                     <div className="grid grid-cols-[280px_1fr] gap-6">
                         <DesktopSidebar items={navItems} />
-                        <main className="min-w-0">
+                        <main className="min-w-0 space-y-4">
                             <Outlet />
+                            <FooterBlock />
                         </main>
                     </div>
                 ) : (
@@ -60,11 +62,40 @@ export default function AppLayout() {
                             </div>
 
                             <Outlet />
+                            <FooterBlock />
                         </main>
                         <MobileTabs items={navItems} />
                     </>
                 )}
             </div>
         </div>
+    );
+}
+
+
+function FooterBlock() {
+    return (
+        <footer className="rounded-2xl border border-white/10 bg-[rgba(6,17,13,0.45)] px-4 py-4 text-sm text-white/70 backdrop-blur-xl">
+            <div className="font-semibold text-white">{APP_NAME}</div>
+            <div className="mt-1 text-xs text-white/55">{SITE_FOOTER.caption}</div>
+
+            {SITE_FOOTER.links.length ? (
+                <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/75">
+                    {SITE_FOOTER.links.map((link) =>
+                        link.href ? (
+                            <a key={link.label} href={link.href} className="rounded-full border border-white/10 px-3 py-1 hover:bg-white/5">
+                                <span className="text-white/45">{link.label}:</span> {link.value}
+                            </a>
+                        ) : (
+                            <div key={link.label} className="rounded-full border border-white/10 px-3 py-1">
+                                <span className="text-white/45">{link.label}:</span> {link.value}
+                            </div>
+                        )
+                    )}
+                </div>
+            ) : null}
+
+            <div className="mt-3 text-xs text-white/45">{SITE_FOOTER.legalText}</div>
+        </footer>
     );
 }
