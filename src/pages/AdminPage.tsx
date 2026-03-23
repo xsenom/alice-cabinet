@@ -677,53 +677,59 @@ export default function AdminPage() {
                 </div>
 
                 {usersOpen ? (
-                    <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-left text-sm text-white/80">
-                                <thead className="bg-white/5 text-xs uppercase tracking-[0.2em] text-white/45">
-                                    <tr>
-                                        <th className="px-4 py-3">Пользователь</th>
-                                        <th className="px-4 py-3">Почта</th>
-                                        <th className="px-4 py-3">Статус</th>
-                                        <th className="px-4 py-3">Роль</th>
-                                        <th className="px-4 py-3">Доступ до</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {users.map((user) => (
-                                        <tr key={user.id} className="border-t border-white/10 align-top">
-                                            <td className="px-4 py-3">
-                                                <div className="font-semibold text-white">{user.full_name || "Без имени"}</div>
-                                                <div className="mt-1 text-xs text-white/45">{user.profession || "Профессия не указана"}</div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div>{user.email || "—"}</div>
-                                                <div className="mt-1 text-xs text-white/45">orig: {user.original_email || user.email || "—"}</div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getPlanBadgeClass(user.plan_status)}`}>
-                                                    {getPlanLabel(user.plan_status)}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {user.status_admin ? (
-                                                    <span className="inline-flex rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100">Админ</span>
-                                                ) : (
-                                                    <span className="inline-flex rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-white/65">Пользователь</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3">{formatDate(user.plan_expires_at)}</td>
-                                        </tr>
-                                    ))}
-                                    {!users.length ? (
-                                        <tr>
-                                            <td colSpan={5} className="px-4 py-6 text-center text-white/55">Пользователи не найдены.</td>
-                                        </tr>
-                                    ) : null}
-                                </tbody>
-                            </table>
+                    <>
+                        <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                            Если здесь отображается только ваш профиль, значит в Supabase ещё действует старая RLS-политика `profiles_les_select_own`.
+                            Примените обновлённый SQL из `SUPABASE_SETUP.md`, чтобы администратор видел всех пользователей.
                         </div>
-                    </div>
+                        <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full text-left text-sm text-white/80">
+                                    <thead className="bg-white/5 text-xs uppercase tracking-[0.2em] text-white/45">
+                                        <tr>
+                                            <th className="px-4 py-3">Пользователь</th>
+                                            <th className="px-4 py-3">Почта</th>
+                                            <th className="px-4 py-3">Статус</th>
+                                            <th className="px-4 py-3">Роль</th>
+                                            <th className="px-4 py-3">Доступ до</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {users.map((user) => (
+                                            <tr key={user.id} className="border-t border-white/10 align-top">
+                                                <td className="px-4 py-3">
+                                                    <div className="font-semibold text-white">{user.full_name || "Без имени"}</div>
+                                                    <div className="mt-1 text-xs text-white/45">{user.profession || "Профессия не указана"}</div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div>{user.email || "—"}</div>
+                                                    <div className="mt-1 text-xs text-white/45">orig: {user.original_email || user.email || "—"}</div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getPlanBadgeClass(user.plan_status)}`}>
+                                                        {getPlanLabel(user.plan_status)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {user.status_admin ? (
+                                                        <span className="inline-flex rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100">Админ</span>
+                                                    ) : (
+                                                        <span className="inline-flex rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-white/65">Пользователь</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">{formatDate(user.plan_expires_at)}</td>
+                                            </tr>
+                                        ))}
+                                        {!users.length ? (
+                                            <tr>
+                                                <td colSpan={5} className="px-4 py-6 text-center text-white/55">Пользователи не найдены.</td>
+                                            </tr>
+                                        ) : null}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </>
                 ) : null}
             </section>
 
