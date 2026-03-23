@@ -34,6 +34,8 @@ create table if not exists public.profiles_les (
   status_admin boolean not null default false,
   plan_status text not null default 'free',
   plan_expires_at timestamptz,
+  first_purchase_at timestamptz,
+  purchases_count integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -42,6 +44,8 @@ alter table public.profiles_les add column if not exists original_email text;
 alter table public.profiles_les add column if not exists status_admin boolean not null default false;
 alter table public.profiles_les add column if not exists plan_status text not null default 'free';
 alter table public.profiles_les add column if not exists plan_expires_at timestamptz;
+alter table public.profiles_les add column if not exists first_purchase_at timestamptz;
+alter table public.profiles_les add column if not exists purchases_count integer not null default 0;
 
 -- updated_at trigger
 create or replace function public.set_updated_at()
@@ -59,6 +63,24 @@ create trigger trg_profiles_les_updated_at
 before update on public.profiles_les
 for each row execute function public.set_updated_at();
 
+-- helper: admin flag check for RLS policies
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles_les
+    where id = auth.uid()
+      and status_admin = true
+  );
+$$;
+
+grant execute on function public.is_admin() to anon, authenticated;
+
 -- RLS
 alter table public.profiles_les enable row level security;
 
@@ -66,7 +88,10 @@ drop policy if exists "profiles_les_select_own" on public.profiles_les;
 create policy "profiles_les_select_own"
 on public.profiles_les
 for select
-using (auth.uid() = id);
+using (
+  auth.uid() = id
+  or public.is_admin()
+);
 
 drop policy if exists "profiles_les_insert_own" on public.profiles_les;
 create policy "profiles_les_insert_own"
@@ -78,8 +103,14 @@ drop policy if exists "profiles_les_update_own" on public.profiles_les;
 create policy "profiles_les_update_own"
 on public.profiles_les
 for update
-using (auth.uid() = id)
-with check (auth.uid() = id);
+using (
+  auth.uid() = id
+  or public.is_admin()
+)
+with check (
+  auth.uid() = id
+  or public.is_admin()
+);
 
 -- storage bucket for avatars
 insert into storage.buckets (id, name, public)
