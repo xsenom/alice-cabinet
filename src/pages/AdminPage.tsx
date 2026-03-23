@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase/client";
 import { DEMO } from "../lib/library/demo";
+import { loadHomeVideoSettings, saveHomeVideoSettings, type HomeVideoSlot, type LessonAccess } from "../lib/homeVideos";
 import type { LessonComment, LessonPdf, TopicKey } from "../lib/library/types";
 
 type Stats = {
@@ -11,8 +12,6 @@ type Stats = {
     paid1m: number;
     paid3m: number;
 };
-
-type LessonAccess = "free" | "pro";
 
 type AdminLesson = {
     id: string;
@@ -55,16 +54,6 @@ type UsersLoadResult = {
     missingPurchaseColumns: boolean;
 };
 
-type HomeVideoSlot = {
-    id: string;
-    title: string;
-    description: string;
-    videoLabel: string;
-    access: LessonAccess;
-    filename: string;
-    publicPath: string;
-};
-
 const VIDEO_BUCKET = (import.meta.env.VITE_SUPABASE_VIDEOS_BUCKET as string | undefined)?.trim() || "videos";
 
 const DEFAULT_COMMENT_MAP: Record<string, LessonComment[]> = {
@@ -75,36 +64,6 @@ const DEFAULT_COMMENT_MAP: Record<string, LessonComment[]> = {
     f02: [{ lessonId: "f02", text: "Очень полезны тайм-коды, пересматриваю отдельные куски.", ts: "сегодня, 09:15" }],
     b01: [{ lessonId: "b01", text: "Добавьте шаблон сообщений для welcome-цепочки.", ts: "сегодня, 11:02" }],
 };
-
-const HOME_VIDEO_SLOTS: HomeVideoSlot[] = [
-    {
-        id: "home-how-to-use",
-        title: "Как пользоваться приложением",
-        description: "Онбординг-ролик для новых пользователей на главной странице.",
-        videoLabel: "Как пользоваться Lesik",
-        access: "free",
-        filename: "how-to-use-lesik.mp4",
-        publicPath: "/videos/how-to-use-lesik.mp4",
-    },
-    {
-        id: "home-who-needs",
-        title: "Кому будет полезно",
-        description: "Короткий ролик про сценарии, кому подходит продукт.",
-        videoLabel: "Кому будет полезно",
-        access: "free",
-        filename: "who-needs-lesik.mp4",
-        publicPath: "/videos/who-needs-lesik.mp4",
-    },
-    {
-        id: "home-miniapp-pro",
-        title: "Mini App в Telegram (PRO)",
-        description: "Промо-видео для платного контента на главной странице.",
-        videoLabel: "Mini App в Telegram",
-        access: "pro",
-        filename: "miniapp-pro.mp4",
-        publicPath: "/videos/miniapp-pro.mp4",
-    },
-];
 
 const USER_BASE_SELECT = "id,email,original_email,full_name,profession,avatar_url,status_admin,plan_status,plan_expires_at,created_at";
 const USER_EXTENDED_SELECT = `${USER_BASE_SELECT},first_purchase_at,purchases_count`;
@@ -198,11 +157,10 @@ export default function AdminPage() {
     const [groups, setGroups] = useState<AdminGroup[]>(() => buildInitialGroups());
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [usersOpen, setUsersOpen] = useState(false);
-    const [homeVideos, setHomeVideos] = useState<HomeVideoSlot[]>(HOME_VIDEO_SLOTS);
+    const [{ slots: homeVideos, urls: homeVideoUrls }, setHomeVideoState] = useState(() => loadHomeVideoSettings());
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
     const [savingUserId, setSavingUserId] = useState<string | null>(null);
     const [missingPurchaseColumns, setMissingPurchaseColumns] = useState(false);
-    const [homeVideoUrls, setHomeVideoUrls] = useState<Record<string, string>>({});
     const [editingHomeId, setEditingHomeId] = useState<string | null>(null);
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
     const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
@@ -211,6 +169,11 @@ export default function AdminPage() {
     const [uploadingId, setUploadingId] = useState<string | null>(null);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [uploadNotice, setUploadNotice] = useState<string | null>(null);
+
+
+    useEffect(() => {
+        saveHomeVideoSettings({ slots: homeVideos, urls: homeVideoUrls });
+    }, [homeVideos, homeVideoUrls]);
 
     useEffect(() => {
         const load = async () => {
@@ -289,7 +252,10 @@ export default function AdminPage() {
     };
 
     const updateHomeVideo = (slotId: string, updater: (slot: HomeVideoSlot) => HomeVideoSlot) => {
-        setHomeVideos((current) => current.map((slot) => (slot.id === slotId ? updater(slot) : slot)));
+        setHomeVideoState((current) => ({
+            ...current,
+            slots: current.slots.map((slot) => (slot.id === slotId ? updater(slot) : slot)),
+        }));
     };
 
     const handleHomeVideoUpload = async (slot: HomeVideoSlot, file?: File) => {
@@ -306,7 +272,10 @@ export default function AdminPage() {
 
         try {
             const publicUrl = await uploadToStorage(`public/${slot.filename}`, file);
-            setHomeVideoUrls((current) => ({ ...current, [slot.id]: publicUrl }));
+            setHomeVideoState((current) => ({
+                ...current,
+                urls: { ...current.urls, [slot.id]: publicUrl },
+            }));
             setUploadNotice(`Ролик «${slot.title}» обновлён.`);
         } catch (uploadStorageError) {
             setUploadError(uploadStorageError instanceof Error ? uploadStorageError.message : "Не удалось загрузить видео.");

@@ -2,6 +2,7 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 import type { NavItem } from "./MobileTabs";
+import { APP_NAME } from "../lib/branding";
 
 // Активный пункт — в медно-янтарной гамме как твоя primary Button
 const NAV_ACTIVE_COPPER =
@@ -14,7 +15,7 @@ const NAV_ACTIVE_COPPER =
 export default function DesktopSidebar({ items }: { items: NavItem[] }) {
     return (
         <aside className="rounded-2xl border border-white/10 bg-[rgba(6,17,13,0.55)] backdrop-blur-xl shadow-[0_16px_50px_rgba(0,0,0,0.55)] p-4">
-            <div className="mb-3 text-lg font-semibold">Lesik</div>
+            <div className="mb-3 text-lg font-semibold">{APP_NAME}</div>
 
             <nav className="flex flex-col gap-2">
                 {items.map((t) => (

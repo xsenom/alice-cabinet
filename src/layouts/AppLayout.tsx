@@ -6,6 +6,7 @@ import DesktopSidebar from "./DesktopSidebar";
 import NetworkCanvasBackground from "../components/background/NetworkCanvasBackground";
 import ForestBackdrop from "../components/background/ForestBackdrop";
 import { useSessionProfile } from "../hooks/useSessionProfile";
+import { APP_NAME } from "../lib/branding";
 
 const TOKENS = { text: "#F2F4F3" };
 
@@ -54,7 +55,7 @@ export default function AppLayout() {
                                     <div className="h-10 w-10 rounded-full border border-white/10 bg-black shadow-[0_10px_30px_rgba(0,0,0,0.35)]" />
                                 )}
                                 <div className="text-base font-semibold tracking-tight">
-                                    {name ? `${name}, всё получится!` : "LESik"}
+                                    {name ? `${name}, всё получится!` : APP_NAME}
                                 </div>
                             </div>
 
