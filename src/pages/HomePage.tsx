@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import HScroll from "../components/ui/HScroll";
 import { useSessionProfile } from "../hooks/useSessionProfile";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { buildHomePageVideos, loadHomeVideoSettings, type HomePageVideo } from "../lib/homeVideos";
+import { buildHomePageVideos, buildHomeStories, loadHomeVideoSettings, type HomePageStory, type HomePageVideo } from "../lib/homeVideos";
 
 type VideoItem = HomePageVideo;
 
@@ -100,23 +100,14 @@ export default function HomePage() {
     const isDesktop = useMediaQuery("(min-width: 1024px)");
     const [activeVideo, setActiveVideo] = useState<VideoItem | null>(null);
 
-    const stories = useMemo(
-        () => [
-            { title: "Старт", sub: "кому полезно", tone: "from-[#1A7A4B] to-[#0A2217]" },
-            { title: "Воронка", sub: "путь", tone: "from-[#2E8A5A] to-[#0A2217]" },
-            { title: "Бот", sub: "логика", tone: "from-[#0F4F38] to-[#06110D]" },
-            { title: "AI", sub: "помощник", tone: "from-[#155F43] to-[#06110D]" },
-            { title: "Mini App", sub: "кабинет", tone: "from-[#116C48] to-[#06110D]" },
-            { title: "PRO", sub: "уроки", tone: "from-[#8B5A1A] to-[#2A1608]" },
-        ],
-        []
-    );
+    const settings = useMemo(() => loadHomeVideoSettings(), []);
+    const stories = useMemo<HomePageStory[]>(() => buildHomeStories(settings), [settings]);
 
     const { profile } = useSessionProfile();
     const name = profile?.full_name?.trim() || "друг";
 
     const nav = useNavigate();
-    const videos = useMemo<VideoItem[]>(() => buildHomePageVideos(loadHomeVideoSettings()), []);
+    const videos = useMemo<VideoItem[]>(() => buildHomePageVideos(settings), [settings]);
 
     const hasPaid =
         !!profile?.plan_expires_at &&
@@ -144,14 +135,20 @@ export default function HomePage() {
                 ) : null}
 
                 <div className="flex gap-3 overflow-x-auto pt-1 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {stories.map((s) => (
-                        <button key={s.title} className="shrink-0 min-w-[58px] flex flex-col items-center gap-2">
-                            <div className={`h-10 w-10 rounded-full border border-white/15 shadow-[0_10px_30px_rgba(0,0,0,0.35)] bg-gradient-to-b ${s.tone} grid place-items-center text-[10px] font-bold`}>
-                                {s.title.slice(0, 2).toUpperCase()}
+                    {stories.map((story) => (
+                        <button key={story.id} type="button" className="flex min-w-[76px] shrink-0 flex-col items-center gap-2 overflow-visible pt-1">
+                            <div className={`grid h-14 w-14 place-items-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-b ${story.tone} shadow-[0_10px_30px_rgba(0,0,0,0.35)]`}>
+                                {story.imageUrl ? (
+                                    <img src={story.imageUrl} alt={story.title} className="h-full w-full object-cover" />
+                                ) : (
+                                    <span className="px-2 text-center text-[10px] font-bold uppercase leading-none text-[#F2F4F3]">
+                                        {story.title.slice(0, 2)}
+                                    </span>
+                                )}
                             </div>
-                            <div className="text-[11px] text-[#A9B3AE] leading-tight text-center">
-                                <div className="text-[#F2F4F3]">{s.title}</div>
-                                <div className="opacity-80">{s.sub}</div>
+                            <div className="text-center text-[11px] leading-tight text-[#A9B3AE]">
+                                <div className="text-[#F2F4F3]">{story.title}</div>
+                                <div className="opacity-80">{story.subtitle}</div>
                             </div>
                         </button>
                     ))}

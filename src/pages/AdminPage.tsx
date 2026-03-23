@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase/client";
-import { loadHomeVideoSettings, saveHomeVideoSettings, type HomeVideoSlot } from "../lib/homeVideos";
+import { loadHomeVideoSettings, saveHomeVideoSettings, type HomeStoryAvatar, type HomeVideoSlot } from "../lib/homeVideos";
 import { loadLibraryContentSettings, saveLibraryContentSettings, type AdminGroup, type AdminLesson, type LessonAccess } from "../lib/adminLibrary";
 
 type Stats = {
@@ -97,7 +97,7 @@ export default function AdminPage() {
     const [groups, setGroups] = useState<AdminGroup[]>(() => loadLibraryContentSettings());
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [usersOpen, setUsersOpen] = useState(false);
-    const [{ slots: homeVideos, urls: homeVideoUrls }, setHomeVideoState] = useState(() => loadHomeVideoSettings());
+    const [{ slots: homeVideos, urls: homeVideoUrls, storyAvatars, storyImageUrls }, setHomeVideoState] = useState(() => loadHomeVideoSettings());
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
     const [savingUserId, setSavingUserId] = useState<string | null>(null);
     const [missingPurchaseColumns, setMissingPurchaseColumns] = useState(false);
@@ -112,8 +112,12 @@ export default function AdminPage() {
 
 
     useEffect(() => {
-        saveHomeVideoSettings({ slots: homeVideos, urls: homeVideoUrls });
-    }, [homeVideos, homeVideoUrls]);
+        saveHomeVideoSettings({ slots: homeVideos, urls: homeVideoUrls, storyAvatars, storyImageUrls });
+    }, [homeVideos, homeVideoUrls, storyAvatars, storyImageUrls]);
+
+    useEffect(() => {
+        saveLibraryContentSettings(groups);
+    }, [groups]);
 
     useEffect(() => {
         saveLibraryContentSettings(groups);
@@ -200,6 +204,40 @@ export default function AdminPage() {
             ...current,
             slots: current.slots.map((slot) => (slot.id === slotId ? updater(slot) : slot)),
         }));
+    };
+
+    const updateStoryAvatar = (storyId: string, updater: (story: HomeStoryAvatar) => HomeStoryAvatar) => {
+        setHomeVideoState((current) => ({
+            ...current,
+            storyAvatars: current.storyAvatars.map((story) => (story.id === storyId ? updater(story) : story)),
+        }));
+    };
+
+    const handleStoryAvatarUpload = async (story: HomeStoryAvatar, file?: File) => {
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+            setUploadError("Для аватара группы можно загружать только изображения.");
+            setUploadNotice(null);
+            return;
+        }
+
+        setUploadingId(story.id);
+        setUploadError(null);
+        setUploadNotice(null);
+
+        try {
+            const ext = getFileExtension(file.name, "png");
+            const publicUrl = await uploadToStorage(`public/stories/${story.id}.${ext}`, file);
+            setHomeVideoState((current) => ({
+                ...current,
+                storyImageUrls: { ...current.storyImageUrls, [story.id]: publicUrl },
+            }));
+            setUploadNotice(`Аватар «${story.title}» обновлён.`);
+        } catch (uploadStorageError) {
+            setUploadError(uploadStorageError instanceof Error ? uploadStorageError.message : "Не удалось загрузить аватар группы.");
+        } finally {
+            setUploadingId(null);
+        }
     };
 
     const handleHomeVideoUpload = async (slot: HomeVideoSlot, file?: File) => {
@@ -382,6 +420,60 @@ export default function AdminPage() {
             <section className="rounded-3xl border border-white/10 bg-[rgba(6,17,13,0.72)] p-5 backdrop-blur-xl">
                 <div className="text-xl font-semibold">Главная / Как пользоваться приложением</div>
                 <div className="mt-1 text-sm text-white/70">Вернул отдельную панель для роликов на главной странице, чтобы можно было обновлять onboarding и промо-видео.</div>
+
+                <div className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+                    <div className="text-base font-semibold text-white">Аватары сторис на главной</div>
+                    <div className="mt-1 text-sm text-white/60">Здесь можно задать круглую аватарку и название группы для верхних сторис.</div>
+                    <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                        {storyAvatars.map((story) => {
+                            const currentImageUrl = storyImageUrls[story.id] || story.imagePath || "";
+                            return (
+                                <div key={story.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`h-14 w-14 overflow-hidden rounded-full border border-white/15 bg-gradient-to-b ${story.tone}`}>
+                                            {currentImageUrl ? (
+                                                <img src={currentImageUrl} alt={story.title} className="h-full w-full object-cover" />
+                                            ) : null}
+                                        </div>
+                                        <div className="text-sm text-white/70">Кружок будет отображаться на главной как в сторис.</div>
+                                    </div>
+                                    <div className="mt-4 grid gap-4">
+                                        <Field label="Название аватара группы">
+                                            <input
+                                                value={story.title}
+                                                onChange={(event) => updateStoryAvatar(story.id, (current) => ({ ...current, title: event.target.value }))}
+                                                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                                            />
+                                        </Field>
+                                        <Field label="Подпись">
+                                            <input
+                                                value={story.subtitle}
+                                                onChange={(event) => updateStoryAvatar(story.id, (current) => ({ ...current, subtitle: event.target.value }))}
+                                                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                                            />
+                                        </Field>
+                                    </div>
+                                    <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60">
+                                        <div className="font-mono text-white">{story.id}</div>
+                                        <div className="mt-1 break-all">{currentImageUrl || "Изображение ещё не загружено"}</div>
+                                    </div>
+                                    <label className="mt-4 inline-flex cursor-pointer items-center rounded-2xl border border-white/10 px-4 py-3 text-sm text-white hover:bg-white/10">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(event) => {
+                                                void handleStoryAvatarUpload(story, event.target.files?.[0]);
+                                                event.currentTarget.value = "";
+                                            }}
+                                        />
+                                        <span>{uploadingId === story.id ? "Загрузка..." : "Загрузить аватар"}</span>
+                                    </label>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
 
                 <div className="mt-5 grid gap-3 xl:grid-cols-3">
                     {homeVideos.map((slot) => {
@@ -932,7 +1024,7 @@ function slugify(value: string) {
         .replace(/-{2,}/g, "-");
 }
 
-function getFileExtension(filename?: string) {
-    const rawExt = filename?.split(".").pop()?.toLowerCase() || "mp4";
+function getFileExtension(filename?: string, fallback = "mp4") {
+    const rawExt = filename?.split(".").pop()?.toLowerCase() || fallback;
     return rawExt.replace(/[^a-z0-9]/g, "") || "mp4";
 }
