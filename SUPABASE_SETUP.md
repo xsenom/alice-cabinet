@@ -99,8 +99,14 @@ drop policy if exists "profiles_les_update_own" on public.profiles_les;
 create policy "profiles_les_update_own"
 on public.profiles_les
 for update
-using (auth.uid() = id)
-with check (auth.uid() = id);
+using (
+  auth.uid() = id
+  or public.is_admin()
+)
+with check (
+  auth.uid() = id
+  or public.is_admin()
+);
 
 -- storage bucket for avatars
 insert into storage.buckets (id, name, public)

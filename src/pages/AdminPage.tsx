@@ -41,6 +41,7 @@ type AdminUser = {
     original_email: string | null;
     full_name: string | null;
     profession: string | null;
+    avatar_url?: string | null;
     status_admin: boolean;
     plan_status: "free" | "paid_1m" | "paid_3m";
     plan_expires_at: string | null;
@@ -136,6 +137,8 @@ export default function AdminPage() {
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [usersOpen, setUsersOpen] = useState(false);
     const [homeVideos, setHomeVideos] = useState<HomeVideoSlot[]>(HOME_VIDEO_SLOTS);
+    const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+    const [savingUserId, setSavingUserId] = useState<string | null>(null);
     const [homeVideoUrls, setHomeVideoUrls] = useState<Record<string, string>>({});
     const [editingHomeId, setEditingHomeId] = useState<string | null>(null);
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -159,7 +162,7 @@ export default function AdminPage() {
                 supabase.from("profiles_les").select("id", { head: true, count: "exact" }).eq("plan_status", "paid_3m"),
                 supabase
                     .from("profiles_les")
-                    .select("id,email,original_email,full_name,profession,status_admin,plan_status,plan_expires_at,created_at")
+                    .select("id,email,original_email,full_name,profession,avatar_url,status_admin,plan_status,plan_expires_at,created_at")
                     .order("created_at", { ascending: false }),
             ]);
 
@@ -296,6 +299,40 @@ export default function AdminPage() {
         } finally {
             setUploadingId(null);
         }
+    };
+
+
+    const saveUserProfile = async () => {
+        if (!selectedUser) return;
+
+        setSavingUserId(selectedUser.id);
+        setUploadError(null);
+        setUploadNotice(null);
+
+        const { error: updateError } = await supabase
+            .from("profiles_les")
+            .update({
+                email: selectedUser.email,
+                original_email: selectedUser.original_email,
+                full_name: selectedUser.full_name,
+                profession: selectedUser.profession,
+                avatar_url: selectedUser.avatar_url ?? null,
+                status_admin: selectedUser.status_admin,
+                plan_status: selectedUser.plan_status,
+                plan_expires_at: selectedUser.plan_expires_at || null,
+            })
+            .eq("id", selectedUser.id);
+
+        if (updateError) {
+            setUploadError(updateError.message);
+            setSavingUserId(null);
+            return;
+        }
+
+        setUsers((current) => current.map((user) => (user.id === selectedUser.id ? selectedUser : user)));
+        setUploadNotice(`Профиль ${selectedUser.full_name || selectedUser.email || selectedUser.id} обновлён.`);
+        setSavingUserId(null);
+        setSelectedUser(null);
     };
 
     const addGroup = () => {
@@ -692,6 +729,7 @@ export default function AdminPage() {
                                             <th className="px-4 py-3">Статус</th>
                                             <th className="px-4 py-3">Роль</th>
                                             <th className="px-4 py-3">Доступ до</th>
+                                            <th className="px-4 py-3 text-right">Редактировать</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -718,11 +756,18 @@ export default function AdminPage() {
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3">{formatDate(user.plan_expires_at)}</td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <IconToggleButton
+                                                        active={selectedUser?.id === user.id}
+                                                        onClick={() => setSelectedUser(user)}
+                                                        label="Редактировать профиль"
+                                                    />
+                                                </td>
                                             </tr>
                                         ))}
                                         {!users.length ? (
                                             <tr>
-                                                <td colSpan={5} className="px-4 py-6 text-center text-white/55">Пользователи не найдены.</td>
+                                                <td colSpan={6} className="px-4 py-6 text-center text-white/55">Пользователи не найдены.</td>
                                             </tr>
                                         ) : null}
                                     </tbody>
@@ -732,6 +777,61 @@ export default function AdminPage() {
                     </>
                 ) : null}
             </section>
+
+            {selectedUser ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                    <div className="w-full max-w-3xl rounded-3xl border border-white/10 bg-[rgba(6,17,13,0.96)] p-5 backdrop-blur-xl">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <div className="text-xl font-semibold text-white">Редакция профиля</div>
+                                <div className="mt-1 text-sm text-white/65">Здесь можно изменить все основные поля профиля пользователя.</div>
+                            </div>
+                            <button type="button" onClick={() => setSelectedUser(null)} className="text-white/70 hover:text-white">✕</button>
+                        </div>
+
+                        <div className="mt-5 grid gap-4 md:grid-cols-2">
+                            <Field label="Имя">
+                                <input value={selectedUser.full_name ?? ""} onChange={(event) => setSelectedUser((current) => current ? { ...current, full_name: event.target.value } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />
+                            </Field>
+                            <Field label="Профессия">
+                                <input value={selectedUser.profession ?? ""} onChange={(event) => setSelectedUser((current) => current ? { ...current, profession: event.target.value } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />
+                            </Field>
+                            <Field label="Текущая почта">
+                                <input value={selectedUser.email ?? ""} onChange={(event) => setSelectedUser((current) => current ? { ...current, email: event.target.value } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />
+                            </Field>
+                            <Field label="Исходная почта">
+                                <input value={selectedUser.original_email ?? ""} onChange={(event) => setSelectedUser((current) => current ? { ...current, original_email: event.target.value } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />
+                            </Field>
+                            <Field label="Avatar URL">
+                                <input value={selectedUser.avatar_url ?? ""} onChange={(event) => setSelectedUser((current) => current ? { ...current, avatar_url: event.target.value } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />
+                            </Field>
+                            <Field label="Статус тарифа">
+                                <select value={selectedUser.plan_status} onChange={(event) => setSelectedUser((current) => current ? { ...current, plan_status: event.target.value as AdminUser['plan_status'] } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none">
+                                    <option value="free" className="bg-[#06110D]">Бесплатный</option>
+                                    <option value="paid_1m" className="bg-[#06110D]">Платный 1 месяц</option>
+                                    <option value="paid_3m" className="bg-[#06110D]">Платный 3 месяца</option>
+                                </select>
+                            </Field>
+                            <Field label="Доступ до">
+                                <input type="datetime-local" value={toDateTimeLocal(selectedUser.plan_expires_at)} onChange={(event) => setSelectedUser((current) => current ? { ...current, plan_expires_at: fromDateTimeLocal(event.target.value) } : current)} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none" />
+                            </Field>
+                            <Field label="Роль администратора">
+                                <label className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white">
+                                    <input type="checkbox" checked={selectedUser.status_admin} onChange={(event) => setSelectedUser((current) => current ? { ...current, status_admin: event.target.checked } : current)} />
+                                    <span>Пользователь — администратор</span>
+                                </label>
+                            </Field>
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap justify-end gap-3">
+                            <Button type="button" onClick={() => setSelectedUser(null)}>Отмена</Button>
+                            <Button type="button" onClick={() => void saveUserProfile()} disabled={savingUserId === selectedUser.id}>
+                                {savingUserId === selectedUser.id ? "Сохраняю..." : "Сохранить профиль"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
         </div>
     );
@@ -803,6 +903,21 @@ function formatDate(value: string | null) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleDateString("ru-RU");
+}
+
+function toDateTimeLocal(value: string | null) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const pad = (part: number) => String(part).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function fromDateTimeLocal(value: string) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString();
 }
 
 function slugify(value: string) {
