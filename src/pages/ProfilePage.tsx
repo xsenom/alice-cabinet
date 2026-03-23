@@ -323,13 +323,15 @@ export default function ProfilePage() {
                 {err ? <div className="text-sm text-red-300">{err}</div> : null}
                 {notice ? <div className="text-sm text-emerald-300">{notice}</div> : null}
 
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <div className="mt-2 space-y-3">
                     <Button onClick={save} disabled={saving} className="w-full">
                         {saving ? "Сохраняю..." : onboarding ? "Сохранить и продолжить" : "Сохранить"}
                     </Button>
-                    <Button onClick={logout} disabled={loggingOut} className="w-full">
+                    <div className="border-t border-white/10 pt-3">
+                        <Button onClick={logout} disabled={loggingOut} className="w-full" variant="ghost">
                         {loggingOut ? "Выход..." : "Выйти из профиля"}
-                    </Button>
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>
