@@ -209,6 +209,35 @@ export default function AdminPage() {
         }));
     };
 
+
+    const addStoryAvatar = () => {
+        const id = `story-${Date.now()}`;
+        setHomeVideoState((current) => ({
+            ...current,
+            storyAvatars: [
+                ...current.storyAvatars,
+                {
+                    id,
+                    title: "Новый кружок",
+                    subtitle: "подпись",
+                    tone: "from-[#1A7A4B] to-[#0A2217]",
+                },
+            ],
+        }));
+        setUploadNotice("Новый кружок добавлен.");
+        setUploadError(null);
+    };
+
+    const removeStoryAvatar = (storyId: string) => {
+        setHomeVideoState((current) => ({
+            ...current,
+            storyAvatars: current.storyAvatars.filter((story) => story.id !== storyId),
+            storyImageUrls: Object.fromEntries(Object.entries(current.storyImageUrls).filter(([id]) => id !== storyId)),
+        }));
+        setUploadNotice("Кружок удалён.");
+        setUploadError(null);
+    };
+
     const handleStoryAvatarUpload = async (story: HomeStoryAvatar, file?: File) => {
         if (!file) return;
         if (!file.type.startsWith("image/")) {
@@ -418,20 +447,28 @@ export default function AdminPage() {
                 <div className="mt-1 text-sm text-white/70">Вернул отдельную панель для роликов на главной странице, чтобы можно было обновлять onboarding и промо-видео.</div>
 
                 <div className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
-                    <div className="text-base font-semibold text-white">Аватары сторис на главной</div>
-                    <div className="mt-1 text-sm text-white/60">Здесь можно задать круглую аватарку и название группы для верхних сторис.</div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <div className="text-base font-semibold text-white">Аватары сторис на главной</div>
+                            <div className="mt-1 text-sm text-white/60">Можно добавлять и удалять кружки. Превью аватара в админке убрано.</div>
+                        </div>
+                        <Button type="button" onClick={addStoryAvatar} className="shrink-0">
+                            Добавить кружок
+                        </Button>
+                    </div>
                     <div className="mt-4 grid gap-3 xl:grid-cols-3">
                         {storyAvatars.map((story) => {
                             const currentImageUrl = storyImageUrls[story.id] || story.imagePath || "";
                             return (
                                 <div key={story.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`h-14 w-14 overflow-hidden rounded-full border border-white/15 bg-gradient-to-b ${story.tone}`}>
-                                            {currentImageUrl ? (
-                                                <img src={currentImageUrl} alt={story.title} className="h-full w-full object-cover" />
-                                            ) : null}
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div className="text-sm font-semibold text-white">{story.title || "Новый кружок"}</div>
+                                            <div className="mt-1 text-xs text-white/50">ID: {story.id}</div>
                                         </div>
-                                        <div className="text-sm text-white/70">Кружок будет отображаться на главной как в сторис.</div>
+                                        <Button type="button" variant="ghost" onClick={() => removeStoryAvatar(story.id)}>
+                                            Удалить
+                                        </Button>
                                     </div>
                                     <div className="mt-4 grid gap-4">
                                         <Field label="Название аватара группы">

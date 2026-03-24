@@ -111,10 +111,15 @@ export function loadHomeVideoSettings(): HomeVideoSettings {
             ...slot,
             ...(slotMap.get(slot.id) ?? {}),
         }));
-        const storyAvatars = DEFAULT_HOME_STORY_AVATARS.map((story) => ({
-            ...story,
-            ...(storyMap.get(story.id) ?? {}),
-        }));
+        const storyAvatars = [
+            ...DEFAULT_HOME_STORY_AVATARS.map((story) => ({
+                ...story,
+                ...(storyMap.get(story.id) ?? {}),
+            })),
+            ...(parsed.storyAvatars ?? []).filter(
+                (story) => !DEFAULT_HOME_STORY_AVATARS.some((defaultStory) => defaultStory.id === story.id)
+            ),
+        ];
 
         return {
             slots,
