@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase/client";
-import { DEMO } from "../lib/library/demo";
-import { loadHomeVideoSettings, saveHomeVideoSettings, type HomeVideoSlot, type LessonAccess } from "../lib/homeVideos";
-import type { LessonComment, LessonPdf, TopicKey } from "../lib/library/types";
+import { loadHomeVideoSettings, saveHomeVideoSettings, type HomeStoryAvatar, type HomeVideoSlot } from "../lib/homeVideos";
+import { loadLibraryContentSettings, saveLibraryContentSettings, type AdminGroup, type AdminLesson, type LessonAccess } from "../lib/adminLibrary";
 
 type Stats = {
     total: number;
@@ -11,27 +10,6 @@ type Stats = {
     free: number;
     paid1m: number;
     paid3m: number;
-};
-
-type AdminLesson = {
-    id: string;
-    title: string;
-    goal: string;
-    access: LessonAccess;
-    videoLabel: string;
-    videoUrl: string;
-    timecodes: string;
-    videoDescription: string;
-    pdfs: LessonPdf[];
-    comments: LessonComment[];
-    averageRating: number;
-    ratingsCount: number;
-};
-
-type AdminGroup = {
-    id: string;
-    title: string;
-    lessons: AdminLesson[];
 };
 
 type AdminUser = {
@@ -55,15 +33,6 @@ type UsersLoadResult = {
 };
 
 const VIDEO_BUCKET = (import.meta.env.VITE_SUPABASE_VIDEOS_BUCKET as string | undefined)?.trim() || "videos";
-
-const DEFAULT_COMMENT_MAP: Record<string, LessonComment[]> = {
-    f01: [
-        { lessonId: "f01", text: "Супер! Наконец-то стало понятно, как выстроить линейку.", ts: "сегодня, 12:40" },
-        { lessonId: "f01", text: "Хочется ещё пример по прогреву через сторис.", ts: "вчера, 18:10" },
-    ],
-    f02: [{ lessonId: "f02", text: "Очень полезны тайм-коды, пересматриваю отдельные куски.", ts: "сегодня, 09:15" }],
-    b01: [{ lessonId: "b01", text: "Добавьте шаблон сообщений для welcome-цепочки.", ts: "сегодня, 11:02" }],
-};
 
 const USER_BASE_SELECT = "id,email,original_email,full_name,profession,avatar_url,status_admin,plan_status,plan_expires_at,created_at";
 const USER_EXTENDED_SELECT = `${USER_BASE_SELECT},first_purchase_at,purchases_count`;
@@ -120,44 +89,15 @@ async function loadAdminUsers(): Promise<UsersLoadResult> {
     };
 }
 
-const DEFAULT_RATINGS: Record<string, { averageRating: number; ratingsCount: number }> = {
-    f01: { averageRating: 4.8, ratingsCount: 32 },
-    f02: { averageRating: 4.6, ratingsCount: 18 },
-    b01: { averageRating: 4.9, ratingsCount: 14 },
-    ai01: { averageRating: 4.7, ratingsCount: 11 },
-    m01: { averageRating: 4.5, ratingsCount: 9 },
-};
-
-function buildInitialGroups(): AdminGroup[] {
-    return (Object.entries(DEMO) as Array<[TopicKey, typeof DEMO[TopicKey]]>).map(([topic, lessons], groupIndex) => ({
-        id: slugify(topic) || `group-${groupIndex + 1}`,
-        title: topic,
-        lessons: lessons.map((lesson, lessonIndex) => ({
-            id: lesson.id || `lesson-${groupIndex + 1}-${lessonIndex + 1}`,
-            title: lesson.title,
-            goal: lesson.goal,
-            access: lesson.premium ? "pro" : "free",
-            videoLabel: lesson.video?.label ?? lesson.title,
-            videoUrl: lesson.video?.url ?? "",
-            timecodes: "00:00 — Вступление\n03:40 — Ключевая мысль\n12:15 — Практический пример",
-            videoDescription: lesson.goal,
-            pdfs: lesson.pdfs ?? [],
-            comments: DEFAULT_COMMENT_MAP[lesson.id] ?? [],
-            averageRating: DEFAULT_RATINGS[lesson.id]?.averageRating ?? 0,
-            ratingsCount: DEFAULT_RATINGS[lesson.id]?.ratingsCount ?? 0,
-        })),
-    }));
-}
-
 export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [stats, setStats] = useState<Stats>({ total: 0, admins: 0, free: 0, paid1m: 0, paid3m: 0 });
 
-    const [groups, setGroups] = useState<AdminGroup[]>(() => buildInitialGroups());
+    const [groups, setGroups] = useState<AdminGroup[]>(() => loadLibraryContentSettings());
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [usersOpen, setUsersOpen] = useState(false);
-    const [{ slots: homeVideos, urls: homeVideoUrls }, setHomeVideoState] = useState(() => loadHomeVideoSettings());
+    const [{ slots: homeVideos, urls: homeVideoUrls, storyAvatars, storyImageUrls }, setHomeVideoState] = useState(() => loadHomeVideoSettings());
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
     const [savingUserId, setSavingUserId] = useState<string | null>(null);
     const [missingPurchaseColumns, setMissingPurchaseColumns] = useState(false);
@@ -172,8 +112,12 @@ export default function AdminPage() {
 
 
     useEffect(() => {
-        saveHomeVideoSettings({ slots: homeVideos, urls: homeVideoUrls });
-    }, [homeVideos, homeVideoUrls]);
+        saveHomeVideoSettings({ slots: homeVideos, urls: homeVideoUrls, storyAvatars, storyImageUrls });
+    }, [homeVideos, homeVideoUrls, storyAvatars, storyImageUrls]);
+
+    useEffect(() => {
+        saveLibraryContentSettings(groups);
+    }, [groups]);
 
     useEffect(() => {
         const load = async () => {
@@ -256,6 +200,69 @@ export default function AdminPage() {
             ...current,
             slots: current.slots.map((slot) => (slot.id === slotId ? updater(slot) : slot)),
         }));
+    };
+
+    const updateStoryAvatar = (storyId: string, updater: (story: HomeStoryAvatar) => HomeStoryAvatar) => {
+        setHomeVideoState((current) => ({
+            ...current,
+            storyAvatars: current.storyAvatars.map((story) => (story.id === storyId ? updater(story) : story)),
+        }));
+    };
+
+
+    const addStoryAvatar = () => {
+        const id = `story-${Date.now()}`;
+        setHomeVideoState((current) => ({
+            ...current,
+            storyAvatars: [
+                ...current.storyAvatars,
+                {
+                    id,
+                    title: "Новый кружок",
+                    subtitle: "подпись",
+                    tone: "from-[#1A7A4B] to-[#0A2217]",
+                },
+            ],
+        }));
+        setUploadNotice("Новый кружок добавлен.");
+        setUploadError(null);
+    };
+
+    const removeStoryAvatar = (storyId: string) => {
+        setHomeVideoState((current) => ({
+            ...current,
+            storyAvatars: current.storyAvatars.filter((story) => story.id !== storyId),
+            storyImageUrls: Object.fromEntries(Object.entries(current.storyImageUrls).filter(([id]) => id !== storyId)),
+        }));
+        setUploadNotice("Кружок удалён.");
+        setUploadError(null);
+    };
+
+    const handleStoryAvatarUpload = async (story: HomeStoryAvatar, file?: File) => {
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+            setUploadError("Для аватара группы можно загружать только изображения.");
+            setUploadNotice(null);
+            return;
+        }
+
+        setUploadingId(story.id);
+        setUploadError(null);
+        setUploadNotice(null);
+
+        try {
+            const ext = getFileExtension(file.name, "png");
+            const publicUrl = await uploadToStorage(`public/stories/${story.id}.${ext}`, file);
+            setHomeVideoState((current) => ({
+                ...current,
+                storyImageUrls: { ...current.storyImageUrls, [story.id]: publicUrl },
+            }));
+            setUploadNotice(`Аватар «${story.title}» обновлён.`);
+        } catch (uploadStorageError) {
+            setUploadError(uploadStorageError instanceof Error ? uploadStorageError.message : "Не удалось загрузить аватар группы.");
+        } finally {
+            setUploadingId(null);
+        }
     };
 
     const handleHomeVideoUpload = async (slot: HomeVideoSlot, file?: File) => {
@@ -438,6 +445,68 @@ export default function AdminPage() {
             <section className="rounded-3xl border border-white/10 bg-[rgba(6,17,13,0.72)] p-5 backdrop-blur-xl">
                 <div className="text-xl font-semibold">Главная / Как пользоваться приложением</div>
                 <div className="mt-1 text-sm text-white/70">Вернул отдельную панель для роликов на главной странице, чтобы можно было обновлять onboarding и промо-видео.</div>
+
+                <div className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <div className="text-base font-semibold text-white">Аватары сторис на главной</div>
+                            <div className="mt-1 text-sm text-white/60">Можно добавлять и удалять кружки. Превью аватара в админке убрано.</div>
+                        </div>
+                        <Button type="button" onClick={addStoryAvatar} className="shrink-0">
+                            Добавить кружок
+                        </Button>
+                    </div>
+                    <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                        {storyAvatars.map((story) => {
+                            const currentImageUrl = storyImageUrls[story.id] || story.imagePath || "";
+                            return (
+                                <div key={story.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div className="text-sm font-semibold text-white">{story.title || "Новый кружок"}</div>
+                                            <div className="mt-1 text-xs text-white/50">ID: {story.id}</div>
+                                        </div>
+                                        <Button type="button" variant="ghost" onClick={() => removeStoryAvatar(story.id)}>
+                                            Удалить
+                                        </Button>
+                                    </div>
+                                    <div className="mt-4 grid gap-4">
+                                        <Field label="Название аватара группы">
+                                            <input
+                                                value={story.title}
+                                                onChange={(event) => updateStoryAvatar(story.id, (current) => ({ ...current, title: event.target.value }))}
+                                                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                                            />
+                                        </Field>
+                                        <Field label="Подпись">
+                                            <input
+                                                value={story.subtitle}
+                                                onChange={(event) => updateStoryAvatar(story.id, (current) => ({ ...current, subtitle: event.target.value }))}
+                                                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                                            />
+                                        </Field>
+                                    </div>
+                                    <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60">
+                                        <div className="font-mono text-white">{story.id}</div>
+                                        <div className="mt-1 break-all">{currentImageUrl || "Изображение ещё не загружено"}</div>
+                                    </div>
+                                    <label className="mt-4 inline-flex cursor-pointer items-center rounded-2xl border border-white/10 px-4 py-3 text-sm text-white hover:bg-white/10">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(event) => {
+                                                void handleStoryAvatarUpload(story, event.target.files?.[0]);
+                                                event.currentTarget.value = "";
+                                            }}
+                                        />
+                                        <span>{uploadingId === story.id ? "Загрузка..." : "Загрузить аватар"}</span>
+                                    </label>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
 
                 <div className="mt-5 grid gap-3 xl:grid-cols-3">
                     {homeVideos.map((slot) => {
@@ -988,7 +1057,7 @@ function slugify(value: string) {
         .replace(/-{2,}/g, "-");
 }
 
-function getFileExtension(filename?: string) {
-    const rawExt = filename?.split(".").pop()?.toLowerCase() || "mp4";
+function getFileExtension(filename?: string, fallback = "mp4") {
+    const rawExt = filename?.split(".").pop()?.toLowerCase() || fallback;
     return rawExt.replace(/[^a-z0-9]/g, "") || "mp4";
 }
