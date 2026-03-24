@@ -21,6 +21,11 @@ export default function HScroll({
     const onPointerDown: React.PointerEventHandler<HTMLDivElement> = (e) => {
         const el = ref.current;
         if (!el) return;
+
+        const target = e.target as HTMLElement | null;
+        if (target?.closest("button, a, input, textarea, select, video")) {
+            return;
+        }
         draggingRef.current = true;
         startXRef.current = e.clientX;
         startScrollLeftRef.current = el.scrollLeft;

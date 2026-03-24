@@ -7,7 +7,7 @@ export type FooterLink = {
 };
 
 export const SITE_FOOTER = {
-
+    caption: "Единое пространство для уроков, профиля и админ-управления.",
     legalText: `© ${new Date().getFullYear()} ${APP_NAME}. Все права защищены.`,
     links: [] as FooterLink[],
 };
