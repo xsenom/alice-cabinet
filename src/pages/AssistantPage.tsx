@@ -9,16 +9,20 @@ type ChatMessage = {
     text: string;
 };
 
+const FREE_MODEL = "gpt-4.1-mini";
+const PAID_MODEL = "gpt-5.2";
+const DAILY_LIMIT = 20;
+
 function todayKey() {
     return new Date().toISOString().slice(0, 10);
 }
 
 function buildReply(input: string, paid: boolean) {
     if (paid) {
-        return `PRO-ассистент:\n1) Цель: ${input}\n2) План на 24 часа: сделай 3 шага (оффер, канал, CTA).\n3) Метрика: отслеживай конверсию в заявку и стоимость лида.`;
+        return `Ассистент ${PAID_MODEL}:\n1) Запрос: ${input}\n2) Следующий шаг: уточни цель, оффер и канал трафика.\n3) План: собери короткий сценарий, CTA и метрику на сегодня.`;
     }
 
-    return `Бесплатный ассистент: понял запрос «${input}». Рекомендую начать с одного простого шага сегодня и проверить результат вечером.`;
+    return `Ассистент ${FREE_MODEL}: понял запрос «${input}». Начни с одного понятного шага сегодня, проверь результат и вернись с уточнением.`;
 }
 
 export default function AssistantPage() {
@@ -34,8 +38,9 @@ export default function AssistantPage() {
         new Date(profile.plan_expires_at).getTime() > Date.now() &&
         profile.plan_status !== "free";
 
-    const dailyLimit = paid ? Infinity : 5;
-    const reachedLimit = !paid && countToday >= dailyLimit;
+    const currentModel = paid ? PAID_MODEL : FREE_MODEL;
+    const dailyLimit = DAILY_LIMIT;
+    const reachedLimit = countToday >= dailyLimit;
 
     const usageStorageKey = useMemo(() => {
         if (!user?.id) return null;
@@ -131,9 +136,7 @@ export default function AssistantPage() {
         <div className="rounded-3xl border border-white/10 bg-[rgba(6,17,13,0.72)] p-4 md:p-5 backdrop-blur-xl">
             <div className="text-2xl font-semibold">Ассистент</div>
             <div className="mt-1 text-sm text-white/70">
-                {paid
-                    ? "PRO-ассистент активен: расширенные подсказки и без лимита запросов."
-                    : `Бесплатный ассистент: ${Math.max(0, dailyLimit - countToday)} из 5 вопросов осталось сегодня.`}
+                {`Модель: ${currentModel}. Осталось ${Math.max(0, dailyLimit - countToday)} из ${dailyLimit} запросов сегодня.`}
             </div>
 
             {usageWarning ? (
@@ -178,11 +181,9 @@ export default function AssistantPage() {
                 </Button>
             </div>
 
-            {!paid ? (
-                <div className="mt-3 text-xs text-white/60">
-                    На платном тарифе подключается другой ассистент (PRO) и снимается дневной лимит.
-                </div>
-            ) : null}
+            <div className="mt-3 text-xs text-white/60">
+                Бесплатный тариф работает на {FREE_MODEL}, платный — на {PAID_MODEL}. Для обоих тарифов действует лимит {DAILY_LIMIT} запросов в сутки. Отдельный системный промпт можно будет подключить позже из выделенного места.
+            </div>
         </div>
     );
 }
